@@ -9,8 +9,17 @@
 
 bool DependencyAnalyzer::isSourceFile(const QString &ext) {
     static const QSet<QString> exts = {
-        "h", "hpp", "hxx", "c", "cpp", "cxx", "cc",
-        "qml", "js", "py", "java", "rs", "go", "cs", "ts"
+        // C / C++
+        "h", "hpp", "hxx", "hh", "c", "cpp", "cxx", "cc", "inl", "tpp",
+        // Qt / Web / Scripting
+        "qml", "js", "ts", "jsx", "tsx", "mjs", "cjs", "json", "qrc", "ui",
+        // Systems & Modern Languages
+        "rs", "go", "java", "kt", "scala", "cs", "swift", "m", "mm",
+        // Python / Ruby / PHP / Shell
+        "py", "pyw", "rb", "php", "sh", "bash", "zsh", "ps1", "bat", "cmd",
+        // Markup, Documentation & Config
+        "html", "htm", "xml", "yaml", "yml", "toml", "ini", "cfg", "conf",
+        "md", "txt", "cmake", "sql", "proto", "dot", "gv", "css", "scss", "less"
     };
     return exts.contains(ext.toLower());
 }
@@ -20,7 +29,7 @@ FileDependencyInfo DependencyAnalyzer::analyzeFile(const QString &rootPath, cons
     QFileInfo fi(fullPath);
     info.filePath = QDir(rootPath).relativeFilePath(fullPath).replace("\\", "/");
     info.fileName = fi.fileName();
-    info.fileType = fi.suffix().toLower();
+    info.fileType = fi.suffix().isEmpty() ? fi.fileName().toLower() : fi.suffix().toLower();
     info.fileSize = fi.size();
 
     QFile file(fullPath);
@@ -34,8 +43,11 @@ FileDependencyInfo DependencyAnalyzer::analyzeFile(const QString &rootPath, cons
     static const QRegularExpression rxCppInc(R"(^\s*#\s*include\s*["<]([^">]+)[">])");
     // Python import x or from x import y
     static const QRegularExpression rxPyInc(R"(^\s*(?:from\s+([a-zA-Z0-9_\.]+)\s+import|import\s+([a-zA-Z0-9_\.]+)))");
-    // QML import x
-    static const QRegularExpression rxQmlInc(R"(^\s*import\s+([a-zA-Z0-9_\.]+))");
+    // QML / JS import x
+    static const QRegularExpression rxQmlInc(R"(^\s*import\s+([a-zA-Z0-9_\.\s]+))");
+    // Java/Kotlin/Go/Rust
+    static const QRegularExpression rxJavaInc(R"(^\s*import\s+(?:static\s+)?([a-zA-Z0-9_\.\*]+);)");
+    static const QRegularExpression rxRustInc(R"(^\s*(?:use|mod)\s+([a-zA-Z0-9_:]+);)");
 
     // Symbol extractors for C/C++/Java/QML
     static const QRegularExpression rxClass(R"(\b(?:class|struct|interface|enum class|enum)\s+([a-zA-Z0-9_]+))");
@@ -70,6 +82,18 @@ FileDependencyInfo DependencyAnalyzer::analyzeFile(const QString &rootPath, cons
         auto mQml = rxQmlInc.match(line);
         if (mQml.hasMatch()) {
             info.includes.append(mQml.captured(1));
+            continue;
+        }
+
+        auto mJava = rxJavaInc.match(line);
+        if (mJava.hasMatch()) {
+            info.includes.append(mJava.captured(1));
+            continue;
+        }
+
+        auto mRust = rxRustInc.match(line);
+        if (mRust.hasMatch()) {
+            info.includes.append(mRust.captured(1));
             continue;
         }
 
@@ -120,17 +144,23 @@ FileDependencyInfo DependencyAnalyzer::analyzeFile(const QString &rootPath, cons
 
 QMap<QString, FileDependencyInfo> DependencyAnalyzer::analyzeProject(const QString &rootPath) {
     QMap<QString, FileDependencyInfo> map;
-    QDirIterator it(rootPath, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+    // Recursively iterate all subdirectories deeply
+    QDirIterator it(rootPath, QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
 
-    // Collect files
     while (it.hasNext()) {
-        QString f = it.next();
-        // Ignore git dir, build dirs, .vs, etc.
-        if (f.contains("/.git/") || f.contains("/build/") || f.contains("/.vs/") || f.contains("/out/") || f.contains("/3rdparty/")) {
+        QString f = it.next().replace("\\", "/");
+        // Only ignore internal git repository database, and huge compiler intermediate output folders
+        if (f.contains("/.git/") || f.contains("/build/CMakeFiles/") || f.contains("/build/.ninja_") || f.contains("/.vs/")) {
             continue;
         }
         QFileInfo fi(f);
-        if (isSourceFile(fi.suffix())) {
+        // Include source files, build files (CMakeLists.txt, Makefile, etc.), configuration files
+        QString ext = fi.suffix().toLower();
+        QString baseName = fi.fileName().toLower();
+
+        bool shouldAnalyze = isSourceFile(ext) || baseName == "cmakelists.txt" || baseName == "makefile" || baseName == "readme.md" || baseName.endsWith("rc");
+
+        if (shouldAnalyze) {
             FileDependencyInfo info = analyzeFile(rootPath, f);
             map.insert(info.filePath, info);
         }
