@@ -88,20 +88,23 @@ FileDependencyInfo DependencyAnalyzer::analyzeFile(const QString &rootPath, cons
         if (info.fileType == "qml") {
             auto mQ = rxQmlComp.match(line);
             if (mQ.hasMatch()) {
-                InternalSymbol sym;
-                sym.name = mQ.captured(1);
-                sym.kind = "component";
-                sym.line = lineNum;
-                info.symbols.append(sym);
-                continue;
+                QString cName = mQ.captured(1);
+                if (cName != "Item" && cName != "Rectangle" && cName != "Row" && cName != "Column") {
+                    InternalSymbol sym;
+                    sym.name = cName;
+                    sym.kind = "component";
+                    sym.line = lineNum;
+                    info.symbols.append(sym);
+                    continue;
+                }
             }
         }
 
-        // 4. Check function patterns (heuristics)
+        // 4. Check function/method signatures
         auto mFunc = rxFunc.match(line);
         if (mFunc.hasMatch()) {
             QString name = mFunc.captured(1);
-            if (name != "if" && name != "for" && name != "while" && name != "switch" && name != "catch") {
+            if (name != "if" && name != "for" && name != "while" && name != "switch" && name != "catch" && name != "return") {
                 InternalSymbol sym;
                 sym.name = name;
                 sym.kind = "function";
@@ -123,7 +126,7 @@ QMap<QString, FileDependencyInfo> DependencyAnalyzer::analyzeProject(const QStri
     while (it.hasNext()) {
         QString f = it.next();
         // Ignore git dir, build dirs, .vs, etc.
-        if (f.contains("/.git/") || f.contains("/build/") || f.contains("/.vs/") || f.contains("/out/")) {
+        if (f.contains("/.git/") || f.contains("/build/") || f.contains("/.vs/") || f.contains("/out/") || f.contains("/3rdparty/")) {
             continue;
         }
         QFileInfo fi(f);
@@ -156,20 +159,22 @@ QMap<QString, FileDependencyInfo> DependencyAnalyzer::analyzeProject(const QStri
 QString DependencyAnalyzer::generateDotFileGraph(const QMap<QString, FileDependencyInfo> &fileMap) {
     QString dot = "digraph ProjectFileDependencies {\n";
     dot += "  rankdir=LR;\n";
-    dot += "  node [shape=box, style=\"rounded,filled\", fillcolor=\"#2b2d30\", fontcolor=\"#e0e0e0\", fontname=\"Segoe UI\", fontsize=10];\n";
-    dot += "  edge [color=\"#5c82a6\", arrowhead=vee];\n\n";
+    dot += "  node [shape=box, style=\"rounded,filled\", fillcolor=\"#1e293b\", fontcolor=\"#e2e8f0\", fontname=\"Segoe UI\", fontsize=10];\n";
+    dot += "  edge [color=\"#38bdf8\", arrowhead=vee];\n\n";
 
     // Add nodes
     for (auto it = fileMap.cbegin(); it != fileMap.cend(); ++it) {
         QString nodeName = QString("\"%1\"").arg(it.key());
         QString label = QString("%1\\n(%2 lines)").arg(it.value().fileName).arg(it.value().lineCount);
-        QString color = "#2b2d30";
+        QString color = "#1e293b";
         if (it.value().fileType == "h" || it.value().fileType == "hpp") {
-            color = "#1e3a5f";
+            color = "#0369a1";
         } else if (it.value().fileType == "cpp" || it.value().fileType == "c") {
-            color = "#2d4a22";
+            color = "#047857";
         } else if (it.value().fileType == "qml") {
-            color = "#4a2d48";
+            color = "#6d28d9";
+        } else if (it.value().fileType == "py") {
+            color = "#b45309";
         }
         dot += QString("  %1 [label=\"%2\", fillcolor=\"%3\"];\n").arg(nodeName, label, color);
     }
@@ -190,38 +195,68 @@ QString DependencyAnalyzer::generateDotFileGraph(const QMap<QString, FileDepende
 
 QString DependencyAnalyzer::generateDotSymbolGraph(const QString &filePath, const FileDependencyInfo &info) {
     QString dot = QString("digraph \"%1_InternalSymbols\" {\n").arg(info.fileName);
-    dot += "  rankdir=TB;\n";
+    dot += "  rankdir=LR;\n";
     dot += "  node [shape=box, style=\"rounded,filled\", fontname=\"Segoe UI\", fontsize=10];\n";
-    dot += "  edge [color=\"#6c757d\", arrowhead=vee];\n\n";
+    dot += "  edge [color=\"#64748b\", arrowhead=vee];\n\n";
 
-    QString rootId = "\"FileRoot\"";
-    dot += QString("  %1 [label=\"%2\\n[%3 lines]\", fillcolor=\"#007acc\", fontcolor=\"#ffffff\", shape=folder];\n\n")
+    QString rootId = QString("\"%1\"").arg(info.filePath);
+    dot += QString("  %1 [label=\"%2\\n[%3 行代码]\", fillcolor=\"#0284c7\", fontcolor=\"#ffffff\", shape=folder];\n\n")
                .arg(rootId, info.fileName).arg(info.lineCount);
+
+    // Group symbols by kind
+    QString classGroup = "\"类与结构 (Classes)\"";
+    QString funcGroup = "\"成员函数/方法 (Methods)\"";
+    QString incGroup = "\"外部包含 (Includes)\"";
+
+    bool hasClass = false, hasFunc = false, hasInc = false;
+    for (const auto &s : info.symbols) {
+        if (s.kind == "class") hasClass = true;
+        if (s.kind == "function") hasFunc = true;
+        if (s.kind == "include") hasInc = true;
+    }
+
+    if (hasClass) {
+        dot += QString("  %1 [label=\"📦 类定义与结构体\", fillcolor=\"#d97706\", fontcolor=\"#ffffff\"];\n").arg(classGroup);
+        dot += QString("  %1 -> %2;\n").arg(rootId, classGroup);
+    }
+    if (hasFunc) {
+        dot += QString("  %1 [label=\"⚡ 核心函数与方法\", fillcolor=\"#059669\", fontcolor=\"#ffffff\"];\n").arg(funcGroup);
+        dot += QString("  %1 -> %2;\n").arg(rootId, funcGroup);
+    }
+    if (hasInc) {
+        dot += QString("  %1 [label=\"🔗 引用包含库\", fillcolor=\"#475569\", fontcolor=\"#ffffff\"];\n").arg(incGroup);
+        dot += QString("  %1 -> %2;\n").arg(rootId, incGroup);
+    }
 
     int idx = 0;
     for (const auto &sym : info.symbols) {
         idx++;
         QString symId = QString("\"sym_%1\"").arg(idx);
-        QString color = "#3c3f41";
-        QString fColor = "#e0e0e0";
+        QString color = "#334155";
+        QString fColor = "#e2e8f0";
+        QString parentGroup = rootId;
 
         if (sym.kind == "class") {
-            color = "#b26900";
+            color = "#b45309";
             fColor = "#ffffff";
+            parentGroup = classGroup;
         } else if (sym.kind == "function") {
-            color = "#286846";
+            color = "#047857";
             fColor = "#ffffff";
+            parentGroup = funcGroup;
         } else if (sym.kind == "include") {
-            color = "#3a4a58";
+            color = "#1e293b";
+            parentGroup = incGroup;
         } else if (sym.kind == "component") {
-            color = "#7d3c98";
+            color = "#6d28d9";
             fColor = "#ffffff";
+            parentGroup = rootId;
         }
 
-        QString label = QString("%1 (%2)\\nline: %3").arg(sym.name, sym.kind).arg(sym.line);
+        QString label = QString("%1\\n(第 %2 行)").arg(sym.name).arg(sym.line);
         dot += QString("  %1 [label=\"%2\", fillcolor=\"%3\", fontcolor=\"%4\"];\n")
                    .arg(symId, label, color, fColor);
-        dot += QString("  %1 -> %2;\n").arg(rootId, symId);
+        dot += QString("  %1 -> %2;\n").arg(parentGroup, symId);
     }
 
     dot += "}\n";

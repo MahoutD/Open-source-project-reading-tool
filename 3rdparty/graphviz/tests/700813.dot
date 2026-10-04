@@ -1,0 +1,14 @@
+digraph g {
+	rankdir="LR" // RL is bad too, but TB/BT are fine
+	// A      // insert this line...
+
+	B -> C // ... and swap this
+	C -> B // with this: then the crash goes away
+	B -> E
+	E -> F // but only if A -> E below, not if A -> C
+	A -> D
+
+	subgraph {rank="same"; B; C}
+	subgraph {rank="same"; A -> C} // or A -> E
+	subgraph {rank="same"; F -> D}
+}

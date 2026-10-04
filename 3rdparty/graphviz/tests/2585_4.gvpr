@@ -1,0 +1,6 @@
+BEGIN {
+  void void1;
+  void void_array2[];
+
+  void_array2[void1] = void1;
+}

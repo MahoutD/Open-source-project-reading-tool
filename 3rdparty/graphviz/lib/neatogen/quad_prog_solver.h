@@ -1,0 +1,47 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+#pragma once
+
+#include <stddef.h>
+#include <util/api.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef DIGCOLA
+
+typedef struct {
+	float **A;
+	int n;
+	float *fArray1;
+	float *fArray2;
+	float *fArray3;
+	float *fArray4;
+	int *ordering;
+	int *levels;
+	size_t num_levels;
+}CMajEnv;
+
+PRIVATE CMajEnv *initConstrainedMajorization(float *, int, int *, int *,
+                                             size_t);
+
+PRIVATE void constrained_majorization_new_with_gaps(CMajEnv*, float*, float**, 
+                                            int, int, float);
+PRIVATE void deleteCMajEnv(CMajEnv *e);
+
+PRIVATE float** unpackMatrix(float * packedMat, int n);
+
+#endif 
+
+#ifdef __cplusplus
+}
+#endif

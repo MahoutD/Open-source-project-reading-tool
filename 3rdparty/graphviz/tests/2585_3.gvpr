@@ -1,0 +1,7 @@
+BEGIN {
+  void void5;
+  int i = 10;
+  void5 = i;
+
+  print(void5);
+}

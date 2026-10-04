@@ -1,0 +1,4 @@
+libgraphviz4: several-sonames-in-same-package libcdt.so.6 libcgraph.so.10 libgvc.so.7 libpathplan.so.4 libxdot.so.5
+
+# We have several shared objects...
+libgraphviz4: package-name-doesnt-match-sonames libcdt6 libcgraph10 libgvc7 libpathplan4 libxdot5 libexpat1 libltdl7 zlib1g

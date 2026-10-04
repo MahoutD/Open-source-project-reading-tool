@@ -1,0 +1,8 @@
+graph  {
+ graph [layout="dot", mode="sgd", overlap="false", rankdir="LR", ratio="compress", size="16,9!", splines="TRUE"];
+ 0 [label="bus01", fontsize="4", height="0.025", id="bus01", shape="point", xlabel="bus01"];
+ 1 [label="bus02", fontsize="4", height="0.025", id="bus02", shape="point", xlabel="bus02"];
+
+
+ 0 --  1 [style="filled",fontsize=5, color="green", id="edge01", label="edge01", penwidth="1.5"];
+}

@@ -1,5 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>qml/Main.qml</file>
+        <file>qml/GraphWindow.qml</file>
+        <file>qml/ReportWindow.qml</file>
     </qresource>
 </RCC>

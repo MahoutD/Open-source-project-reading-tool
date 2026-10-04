@@ -1,0 +1,33 @@
+digraph G {
+	graph[ordering = "in"];
+	node8->node153
+	node211->node8
+	node221->node8
+	node12->node153
+	node12->node205
+	node91->node14 // possibly not needed
+	node211->node22
+	node48->node205
+	node91->node48 // possibly not needed
+	node118->node48
+	node51->node221
+	node118->node51
+	node72->node221 // possibly not needed
+	node8->node205
+	subgraph group0 {
+		cluster=true;
+		node8
+		node12
+		node14 // possibly not needed
+		node22
+		node48
+		node51
+		node72 // possibly not needed
+		node91 // possibly not needed
+		node118
+		node153
+		node205
+		node211
+		node221
+	}
+}

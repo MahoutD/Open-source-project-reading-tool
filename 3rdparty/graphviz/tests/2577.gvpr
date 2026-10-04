@@ -1,0 +1,7 @@
+BEGIN {
+  graph_t g = graph("abc", "DS");
+  string val = aget(g, "label");
+  print("Before...");
+  printf("<%s>\n", val);
+  print("After.");
+}

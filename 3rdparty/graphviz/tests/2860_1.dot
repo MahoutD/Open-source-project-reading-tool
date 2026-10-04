@@ -1,0 +1,1 @@
+strict graph { { graph [label=foo]; 1 -- 2; } }

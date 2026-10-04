@@ -1,0 +1,320 @@
+digraph "deepin-dependency-list" {
+    /**
+     *
+     * PKG-DEEPIN TEAM
+     *
+     * pkg-deepin-devel@lists.alioth.debian.org
+     * salsa.debian.org/pkg-deepin-team
+     *
+     * * * * * * * * * * * * * * * * * * * * * *
+     *
+     * ACCEPTED: green
+     * NEW: magenta
+     * RFS: deepskyblue
+     * ITP: yellow
+     *  non-ITP-blocked: grey
+     * with-problem: red
+     * deepin packages: square/octagon
+     * non-deepin packages: diamond
+     */
+
+    rankdir=LR;
+    node [style=filled];
+
+    subgraph "DeepinPackages" {
+        node [penwidth=4, shape=octagon];
+        "deepin-boot-maker" [color=yellow];
+        "deepin-calculator" [color=green];
+        "deepin-image-viewer" [color=green];
+        "deepin-terminal" [color=green];
+        "deepin-screenshot" [color=green];
+        "deepin-movie-reborn" [color=green];
+        "deepin-music" [color=grey];
+        "deepin-screen-recorder" [color=yellow];
+        "deepin-download" [color=red, label=<deepin-download<br/><font point-size="10">still under development</font>>];
+        "dde-calendar" [color=green];
+        "dde-file-manager" [color=yellow];
+        "dde-control-center" [color=yellow];
+        "dde-launcher" [color=yellow];
+        "deepin-draw" [color=red, label=<deepin-draw<br/><font point-size="10">still under development</font>>];
+        /* "deepin-remote-assistance" [color=grey]; NEVER USED */
+        "deepin-system-monitor" [color=yellow];
+        "deepin-voice-recorder" [color=deepskyblue];
+        "deepin-deb-installer" [color=deepskyblue];
+        "deepin-wm" [color=yellow];
+        "deepin-clone" [color=grey];
+        "deepin-picker" [color=green];
+    }
+    subgraph "DeepinDepPackages" {
+        node [penwidth=2, shape=box];
+        "dtkcore" [color=green];
+        "dtkwm" [color=green];
+        "dtkwidget" [color=green];
+        "deepin-menu" [color=green];
+        "deepin-gettext-tools" [color=green];
+        "deepin-go-lib" [color=grey];
+        "deepin-qt5dxcb-plugin" [color=green];
+        "deepin-installer-timezones" [color=red, label=<deepin-installer-timezones<br/><font point-size="10">just some translations for timezone names, but we don't want to pack deepin-installer</font>>];
+        "deepin-notifications" [color=green];
+        "deepin-shortcut-viewer" [color=green];
+        "dde-daemon" [color=grey];
+        "deepin-desktop-base" [color=grey];
+        "deepin-sound-theme" [color=grey];
+        "deepin-metacity" [color=yellow];
+        "deepin-desktop-schemas" [color=grey];
+        "dde-polkit-agent" [color=grey];
+        "deepin-go-dbus-factory" [color=grey];
+        "deepin-go-dbus-generator" [color=grey];
+        "dde-qt-dbus-factory" [color=green];
+        "dde-session-ui" [color=yellow];
+        "dde-dock" [color=yellow];
+        "deepin-icon-theme" [color=green];
+        "deepin-mutter" [color=grey, label=<deepin-mutter<br/><font point-size="10">use original mutter fine?</font>>];
+        "dde-api" [color=grey];
+        "dde-account-faces" [color=grey];
+        "dde-qt5integration" [color=green];
+        "startdde" [color=grey];
+        "deepin-wallpapers" [color=yellow];
+        "deepin-wm-switcher" [color=grey];
+        "deepin-go-gir-generator" [color=grey];
+        "libxsys" [color=grey];
+        "plymouth-theme-deepin" [color=grey];
+    }
+
+    subgraph "OtherPackages" {
+        node [shape=cds];
+        "gsettings-qt" [color=green];
+        "granite" [color=green];
+        "golang-github-axgle-mahonia" [color=black, fontcolor=white];
+        "golang-github-burntsushi-xgb" [color=yellow];
+        "golang-github-burntsushi-xgbutil" [color=black, fontcolor=white];
+        "golang-github-howeyc-fsnotify" [color=black, fontcolor=white label=<golang-github-howeyc-fsnotify<br/><font point-size="10">deepin refuse to change dependency due to support for alpha/sw_64 architecture</font>>];
+        "papirus-icon-theme" [color=green];
+        "qtdbusextended" [color=green];
+        "qtmpris" [color=black, fontcolor=white];
+    }
+
+    subgraph "BuildDependRelationship" {
+        edge [style=bold, color=red];
+        "dtkcore" -> "gsettings-qt";
+        "dtkwidget" -> "gsettings-qt";
+        "dtkwidget" -> "dtkcore";
+        "dtkwidget" -> "dde-qt-dbus-factory";
+        "deepin-download" -> "dtkwidget";
+        "deepin-boot-maker" -> "dtkwidget";
+        "deepin-boot-maker" -> "libxsys";
+        "deepin-calculator" -> "dtkwidget";
+        "deepin-clone" -> "deepin-gettext-tools";
+        "deepin-clone" -> "dtkwidget";
+        "deepin-image-viewer" -> "dtkwidget";
+        "deepin-desktop-schemas" -> "deepin-desktop-base";
+        "deepin-menu" -> "dtkwidget";
+        "deepin-menu" -> "dde-qt-dbus-factory";
+        "deepin-screenshot" -> "dtkwm";
+        "deepin-screenshot" -> "dtkwidget";
+        "deepin-screenshot" -> "deepin-gettext-tools";
+        "deepin-picker" -> "dtkwidget";
+        "deepin-movie-reborn" -> "dtkwidget";
+        "deepin-music" -> "dtkwidget";
+        "deepin-music" -> "dtkcore";
+        "deepin-music" -> "qtmpris";
+        "qtmpris" -> "qtdbusextended";
+        "deepin-notifications" -> "dtkwidget";
+        "deepin-shortcut-viewer" -> "dtkwidget";
+        "deepin-shortcut-viewer" -> "dtkcore";
+        "dde-calendar" -> "dtkwidget";
+        "dde-calendar" -> "deepin-gettext-tools";
+        "dde-daemon" -> "deepin-gettext-tools";
+        "dde-daemon" -> "dde-api";
+        "dde-daemon" -> "deepin-go-dbus-factory";
+        "dde-daemon" -> "deepin-go-lib";
+        "dde-daemon" -> "golang-github-axgle-mahonia";
+        "dde-daemon" -> "golang-github-burntsushi-xgb";
+        "dde-daemon" -> "golang-github-burntsushi-xgbutil";
+        "dde-daemon" -> "golang-github-howeyc-fsnotify";
+        "dde-daemon" -> "deepin-go-gir-generator";
+        "golang-github-burntsushi-xgbutil" -> "golang-github-burntsushi-xgb";
+        "dde-file-manager" -> "dtkwidget";
+        "dde-file-manager" -> "dtkcore";
+        "dde-qt-dbus-factory" -> "qtdbusextended";
+        "deepin-screen-recorder" -> "dtkwidget";
+        "deepin-screen-recorder" -> "dtkwm";
+        "deepin-go-dbus-factory" -> "deepin-go-lib";
+        "deepin-go-dbus-factory" -> "deepin-go-dbus-generator";
+        "deepin-go-dbus-generator" -> "deepin-go-lib";
+        "dde-polkit-agent" -> "dtkwidget";
+        "dde-polkit-agent" -> "dde-qt-dbus-factory";
+        "dde-session-ui" -> "dtkwidget";
+        "dde-session-ui" -> "gsettings-qt";
+        "dde-session-ui" -> "dde-qt-dbus-factory";
+        "dde-session-ui" -> "deepin-gettext-tools";
+        "dtkwm" -> "dtkcore";
+        "dde-control-center" -> "deepin-gettext-tools";
+        "dde-control-center" -> "dtkwidget";
+        "dde-control-center" -> "dde-dock";
+        "dde-control-center" -> "dde-qt-dbus-factory";
+        "dde-control-center" -> "gsettings-qt";
+        "dde-dock" -> "dtkcore";
+        "dde-dock" -> "dtkwidget";
+        "dde-dock" -> "dde-qt-dbus-factory";
+        "dde-dock" -> "gsettings-qt";
+        "dde-api" -> "deepin-go-dbus-factory";
+        "dde-api" -> "deepin-go-lib";
+        "dde-launcher" -> "gsettings-qt";
+        "dde-launcher" -> "dtkwidget";
+        "dde-launcher" -> "dtkcore";
+        "dde-launcher" -> "dde-qt-dbus-factory";
+        "dde-qt5integration" -> "dtkwidget";
+        "deepin-draw" -> "dtkwidget";
+        "deepin-draw" -> "deepin-gettext-tools";
+        "deepin-system-monitor" -> "dtkwidget";
+        "deepin-system-monitor" -> "dtkwm";
+        "deepin-system-monitor" -> "dtkcore";
+        "deepin-voice-recorder" -> "dtkwidget";
+        "deepin-deb-installer" -> "dtkwidget";
+        "deepin-wm" -> "deepin-mutter";
+        "deepin-wm" -> "granite";
+        "startdde" -> "deepin-go-lib";
+        "startdde" -> "deepin-go-dbus-factory";
+        "startdde" -> "dde-api";
+        "startdde" -> "golang-github-burntsushi-xgbutil";
+        "startdde" -> "golang-github-howeyc-fsnotify";
+        "deepin-go-lib" -> "deepin-go-gir-generator";
+        "deepin-go-lib" -> "golang-github-burntsushi-xgb";
+        "deepin-go-lib" -> "golang-github-burntsushi-xgbutil";
+        "deepin-go-lib" -> "golang-github-howeyc-fsnotify";
+    }
+
+    subgraph "RuntimeDependRelationship" {
+        edge [color=black];
+        "deepin-terminal" -> "deepin-menu";
+        "deepin-icon-theme" -> "papirus-icon-theme";
+        "dde-file-manager" -> "dde-daemon";
+        "dde-daemon" -> "deepin-desktop-base";
+        "deepin-screen-recorder" -> "deepin-notifications";
+        "dde-daemon" -> "deepin-metacity";
+        "dde-daemon" -> "deepin-desktop-schemas";
+        "dde-daemon" -> "deepin-installer-timezones";
+        "dde-daemon" -> "dde-polkit-agent";
+        "dde-session-ui" -> "dde-daemon";
+        "dde-session-ui" -> "deepin-desktop-schemas";
+        "dde-control-center" -> "dde-daemon";
+        "dde-control-center" -> "dde-api";
+        "dde-control-center" -> "dde-account-faces";
+        "dde-control-center" -> "deepin-installer-timezones";
+        "dde-dock" -> "deepin-menu";
+        "dde-launcher" -> "deepin-desktop-schemas";
+        "dde-qt5integration" -> "deepin-qt5dxcb-plugin";
+        "deepin-wm" -> "deepin-desktop-schemas";
+        "deepin-wm" -> "deepin-menu";
+        "startdde" -> "deepin-desktop-schemas";
+        "startdde" -> "dde-daemon";
+        "startdde" -> "deepin-wm-switcher";
+        "startdde" -> "deepin-metacity";
+        "startdde" -> "deepin-wm";
+    }
+
+    subgraph "OptionalDependRelationship" {
+        edge [style=dotted];
+        "deepin-desktop-base" -> "deepin-wallpapers";
+        "deepin-desktop-base" -> "plymouth-theme-deepin";
+        "deepin-screenshot" -> "deepin-notifications";
+        "deepin-screenshot" -> "deepin-shortcut-viewer";
+        "dde-calendar" -> "dde-api";
+        "dde-daemon" -> "deepin-sound-theme";
+        "dde-dock" -> "dde-disk-mount-plugin";
+        "dde-dock" -> "dde-disk-trash-plugin";
+        "deepin-mutter" -> "deepin-desktop-schemas";
+        "startdde" -> "dde-qt5integration";
+        "deepin-voice-recorder" -> "dde-qt5integration";
+        "deepin-draw" -> "dde-qt5integration";
+        "deepin-screenshot" -> "dde-qt5integration";
+        "deepin-image-viewer" -> "dde-qt5integration";
+        "deepin-system-monitor" -> "dde-qt5integration";
+        "deepin-shortcut-viewer" -> "dde-qt5integration";
+        "dde-file-manager" -> "dde-qt5integration";
+        "dde-dock" -> "dde-qt5integration";
+        "dde-control-center" -> "dde-qt5integration";
+        "deepin-picker" -> "dde-qt5integration";
+        "deepin-screen-recorder" -> "dde-qt5integration";
+        "dde-launcher" -> "dde-qt5integration";
+        "deepin-clone" -> "dde-qt5integration";
+        "deepin-menu" -> "dde-qt5integration";
+        "deepin-calculator" -> "dde-qt5integration";
+        "deepin-notifications" -> "dde-qt5integration";
+        "dde-session-ui" -> "dde-qt5integration";
+        "dde-polkit-agent" -> "dde-qt5integration";
+        "deepin-movie-reborn" -> "dde-qt5integration";
+        "deepin-download" -> "dde-qt5integration";
+    }
+
+    {
+        rankdir = LR;
+        rank = sink;
+        node [color=white];
+        Legend [shape=none, margin=0, label=<
+            <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+            <tr>
+                <td colspan="2"><b>Legend</b></td>
+            </tr>
+            <tr>
+                <td>ACCEPTED</td>
+                <td bgcolor="green">green</td>
+            </tr>
+            <tr>
+                <td>NEW</td>
+                <td bgcolor="magenta">magenta</td>
+            </tr>
+            <tr>
+                <td>RFS</td>
+                <td bgcolor="deepskyblue">deepskyblue</td>
+            </tr>
+            <tr>
+                <td>ITP</td>
+                <td bgcolor="yellow">yellow</td>
+            </tr>
+            <tr>
+                <td>TODO</td>
+                <td bgcolor="grey">grey</td>
+            </tr>
+            <tr>
+                <td>INACTIVE UPSTREAM</td>
+                <td bgcolor="black"><font color="white">black</font></td>
+            </tr>
+            <tr>
+                <td>PROBLEMS</td>
+                <td bgcolor="red">red</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>build dep</td>
+                <td><font color="red"><b>→</b></font></td>
+            </tr>
+            <tr>
+                <td>runtime dep</td>
+                <td><font color="black"><b>→</b></font></td>
+            </tr>
+            <tr>
+                <td>optional dep</td>
+                <td><font color="black"><b>. . . . . </b></font></td>
+            </tr>
+            <tr>
+                <td colspan="2">
+                    <b>Debian pkg-deepin team</b>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2">
+                    <u>https://salsa.debian.org/pkg-deepin-team</u>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2">"2018-04-02"</td>
+            </tr>
+            </table>
+        >];
+    }
+}

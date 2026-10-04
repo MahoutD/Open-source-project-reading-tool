@@ -1,0 +1,18 @@
+BEGIN{
+  string str[], i;
+  
+  str[1]="style";
+  str[2]="minlen";
+}
+E{
+  print ("// EDGE: ", $.name);
+  for (str[i]){
+    print ("//    ", str[i], " :: ", hasAttr($,str[i]));
+  }
+}
+N{
+  print ("// NODE: ", $.name);
+  for (str[i]){
+    print ("//    ", str[i], " :: ", hasAttr($,str[i]));
+  }
+}

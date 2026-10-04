@@ -1,0 +1,57 @@
+BEGIN {
+  string action = ARGC == 0 ? "no-crash" : ARGV[0];
+
+  /*
+    Start of code that should be rejected before execution
+    of gvpr program.
+  */
+
+  void void1;
+
+  void void_array1[void];
+  void void_array2[];
+
+  void void2;
+  void void3;
+  void void4;
+  void4 = void2 + void3;
+
+  void f1(void x) {}
+
+  void f2(void x) {
+    print("Rhubarb.");
+  }
+
+  void void5;
+  int i = 10;
+  void5 = i;
+
+  /*
+    End of code that should be rejected before execution
+    of gvpr program.
+  */
+
+  switch (action) {
+    case "crash1":
+      print(void1); // segfault
+      break;
+    case "crash2":
+      print(void4); // segfault
+      break;
+    case "crash3":
+      print(void5); // segfault
+      break;
+    case "crash4":
+      void_array2[void1] = void1; // segfault
+      break;
+    case "crash5":
+      f1(void_array2[void1]); // segfault
+      break;
+    case "crash6":
+      f1(); // segfault
+      break;
+    case "no-crash":
+      f2();
+      print("No crash.");
+  }
+}

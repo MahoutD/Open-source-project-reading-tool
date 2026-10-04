@@ -1,0 +1,67 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+/*
+ * this implements the resistor circuit current model for
+ * computing node distance, as an alternative to shortest-path.
+ * likely it could be improved by using edge weights, somehow.
+ * Return 1 if successful; 0 otherwise (e.g., graph is disconnected).
+ */
+
+#include "config.h"
+
+#include	<neatogen/neato.h>
+
+int solveCircuit(int nG, double **Gm, double **Gm_inv)
+{
+    if (Verbose)
+	fprintf(stderr, "Calculating circuit model");
+
+    /* set diagonal entries to sum of conductances but ignore nth node */
+    for (int i = 0; i < nG; i++) {
+	double sum = 0;
+	for (int j = 0; j < nG; j++)
+	    if (i != j)
+		sum += Gm[i][j];
+	Gm[i][i] = -sum;
+    }
+    return matinv(Gm, Gm_inv, nG - 1);
+}
+
+int circuit_model(graph_t * g, int nG)
+{
+    double **const Gm = new_array(nG, nG, 0.0);
+    double **const Gm_inv = new_array(nG, nG, 0.0);
+
+    /* set non-diagonal entries */
+    for (node_t *v = agfstnode(g); v; v = agnxtnode(g, v)) {
+	for (edge_t *e = agfstedge(g, v); e; e = agnxtedge(g, e, v)) {
+	    const long i = AGSEQ(agtail(e));
+	    const long j = AGSEQ(aghead(e));
+	    if (i == j)
+		continue;
+	    /* conductance is 1/resistance */
+	    Gm[i][j] = Gm[j][i] = -1.0 / ED_dist(e);	/* negate */
+	}
+    }
+
+    const int rv = solveCircuit(nG, Gm, Gm_inv);
+
+    if (rv)
+	for (int i = 0; i < nG; i++) {
+	    for (int j = 0; j < nG; j++) {
+		GD_dist(g)[i][j] =
+		    Gm_inv[i][i] + Gm_inv[j][j] - 2.0 * Gm_inv[i][j];
+	    }
+	}
+    free_array(Gm);
+    free_array(Gm_inv);
+    return rv;
+}

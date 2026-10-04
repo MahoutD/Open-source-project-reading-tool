@@ -1,0 +1,34 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+  ],
+  "packageRules": [
+    // Don't update e.g. ubuntu 20.04 to 24.04.
+    {
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "enabled": false,
+    },
+    // Append SHA256 digests to any docker images.
+    {
+      "matchDatasources": ["docker"],
+      "pinDigests": true,
+    },
+    // We update our python constraint manually when distributions reach EOL.
+    {
+      "matchDepTypes": ["tool-constraint"],
+      "matchDepNames": ["python"],
+      "enabled": false,
+    },
+  ],
+  // We need to support an older version of python that not all PyPI packages support.
+  "constraints": {
+    "python": "3.9"
+  },
+  "constraintsFiltering": "strict",
+  // Rebasing concurrent renovate branches so we can merge them serially chews
+  // up our CI quota. Better to make renovate only propose changes serially in
+  // the first place.
+  "prConcurrentLimit": 1,
+}

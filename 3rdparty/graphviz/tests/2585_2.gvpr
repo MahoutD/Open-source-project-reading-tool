@@ -1,0 +1,8 @@
+BEGIN {
+  void void2;
+  void void3;
+  void void4;
+  void4 = void2 + void3;
+
+  print(void4);
+}

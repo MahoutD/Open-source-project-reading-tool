@@ -1,0 +1,10 @@
+// based on https://gitlab.com/graphviz/graphviz/-/work_items/2774
+
+digraph {
+    {
+      0 [0=0] 
+    }
+    [0=""]
+  0 -> Se0ffa00000d60e0db000000bf00fa0d0 [0=0] 
+  Se0ffa00000d60e0db000000bf00fa0d0 -> a [fontsize=600000000000000000e=0 label="0"]
+}

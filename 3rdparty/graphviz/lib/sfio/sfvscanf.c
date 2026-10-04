@@ -1,0 +1,579 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+#include "config.h"
+
+#include <assert.h>
+#include <inttypes.h>
+#include	<limits.h>
+#include	<sfio/sfhdr.h>
+#include	<stdbool.h>
+#include	<stddef.h>
+#include	<stdio.h>
+#include <util/gv_ctype.h>
+
+/*	The main engine for reading formatted data
+**
+**	Written by Kiem-Phong Vo.
+*/
+
+#define MAXWIDTH	INT_MAX	// max amount to scan
+
+/**
+ * @param form format string
+ * @param accept accepted characters are set to 1
+ */
+static const unsigned char *setclass(const unsigned char *form, bool *accept) {
+    int fmt, c;
+    bool yes;
+
+    if ((fmt = *form++) == '^') {	/* we want the complement of this set */
+	yes = false;
+	fmt = *form++;
+    } else
+	yes = true;
+
+    for (c = 0; c <= UCHAR_MAX; ++c)
+	accept[c] = !yes;
+
+    if (fmt == ']' || fmt == '-') {	/* special first char */
+	accept[fmt] = yes;
+	fmt = *form++;
+    }
+
+    for (; fmt != ']'; fmt = *form++) {	/* done */
+	if (!fmt)
+	    return form - 1;
+
+	/* interval */
+	if (fmt != '-' || form[0] == ']' || form[-2] > form[0])
+	    accept[fmt] = yes;
+	else
+	    for (c = form[-2] + 1; c < form[0]; ++c)
+		accept[c] = yes;
+    }
+
+    return form;
+}
+
+/**
+ * @param f file to be scanned
+ * @param ft Formatting instructions
+ */
+int sfvscanf(FILE *f, Sffmt_t *ft) {
+    int inp, shift, base, width;
+    ssize_t size;
+    int fmt, flags, dot, n_assign, v, n_input;
+    char *sp;
+    char accept[SF_MAXDIGITS];
+
+    Argv_t argv;
+
+    void *value;		/* location to assign scanned value */
+    const char *t_str;
+    ssize_t n_str;
+
+#define SFGETC(f,c)	(((c) = getc(f)) < 0 ? c : (++n_input, c))
+#define SFUNGETC(f,c)	do { \
+  ungetc((c), (f)); \
+  --n_input; \
+} while (0)
+
+    assert(f != NULL);
+
+    n_assign = n_input = 0;
+
+    inp = -1;
+
+    const char *form;
+    argv.ft = ft;
+
+    form = argv.ft->form;
+
+    assert(ft != NULL && ft->extf != NULL);
+
+  loop_fmt:
+    while ((fmt = *form++)) {
+	if (fmt != '%') {
+	    if (gv_isspace(fmt)) {
+		if (fmt != '\n')
+		    fmt = -1;
+		for (;;) {
+		    if (SFGETC(f, inp) < 0 || inp == fmt)
+			goto loop_fmt;
+		    else if (!gv_isspace(inp)) {
+			SFUNGETC(f, inp);
+			goto loop_fmt;
+		    }
+		}
+	    } else {
+	      match_1:
+		if (SFGETC(f, inp) != fmt) {
+		    if (inp >= 0)
+			SFUNGETC(f, inp);
+		    goto done;
+		}
+	    }
+	    continue;
+	}
+
+	if (*form == '%') {
+	    form += 1;
+	    goto match_1;
+	}
+
+	if (*form == '\0')
+	    goto done;
+
+	if (*form == '*') {
+	    flags = SFFMT_SKIP;
+	    form += 1;
+	} else
+	    flags = 0;
+
+	/* matching some pattern */
+	base = 10;
+	size = -1;
+	width = dot = 0;
+	t_str = NULL;
+	n_str = 0;
+	value = NULL;
+
+      loop_flags:		/* LOOP FOR FLAGS, WIDTH, BASE, TYPE */
+	switch ((fmt = *form++)) {
+	case LEFTP:		/* get the type which is enclosed in balanced () */
+	    t_str = form;
+	    for (v = 1;;) {
+		switch (*form++) {
+		case 0:	/* not balanceable, retract */
+		    form = t_str;
+		    t_str = NULL;
+		    n_str = 0;
+		    goto loop_flags;
+		case LEFTP:	/* increasing nested level */
+		    v += 1;
+		    continue;
+		case RIGHTP:	/* decreasing nested level */
+		    if ((v -= 1) != 0)
+			continue;
+		    if (*t_str != '*')
+			n_str = (form - 1) - t_str;
+		    else {
+
+			FMTSET(ft, form, LEFTP, 0, 0, 0, 0, 0, NULL, 0);
+			if (ft->extf(&argv, ft) < 0)
+			    goto done;
+			assert(ft->flags & SFFMT_VALUE);
+			if ((t_str = argv.s) && (n_str = (int)ft->size) < 0)
+			    n_str = (ssize_t)strlen(t_str);
+		    }
+		    goto loop_flags;
+		default:
+		    // skip over
+		    break;
+		}
+	    }
+
+	case '#':		/* alternative format */
+	    flags |= SFFMT_ALTER;
+	    goto loop_flags;
+
+	case '.':		/* width & base */
+	    dot += 1;
+	    if (gv_isdigit(*form)) {
+		fmt = *form++;
+		goto dot_size;
+	    } else if (*form == '*') {
+		form = _Sffmtintf(form + 1);
+
+		FMTSET(ft, form, '.', dot, 0, 0, 0, 0, NULL, 0);
+		if (ft->extf(&argv, ft) < 0)
+		    goto done;
+		assert(ft->flags & SFFMT_VALUE);
+		v = argv.i;
+		if (v < 0)
+		    v = 0;
+		goto dot_set;
+	    } else
+		goto loop_flags;
+
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+	  dot_size:
+	    for (v = fmt - '0'; gv_isdigit(*form); ++form)
+		v = v * 10 + (*form - '0');
+
+	  dot_set:
+	    if (dot == 0 || dot == 1)
+		width = v;
+	    else if (dot == 2)
+		base = v;
+	    goto loop_flags;
+
+	case 'I':		/* object size */
+	    size = 0;
+	    flags = (flags & ~SFFMT_TYPES) | SFFMT_IFLAG;
+	    if (gv_isdigit(*form)) {
+		for (; gv_isdigit(*form); ++form)
+		    size = size * 10 + (*form - '0');
+	    } else if (*form == '*') {
+		form = _Sffmtintf(form + 1);
+
+		FMTSET(ft, form, 'I', sizeof(int), 0, 0, 0, 0, NULL, 0);
+		if (ft->extf(&argv, ft) < 0)
+		    goto done;
+		assert(ft->flags & SFFMT_VALUE);
+		size = argv.i;
+	    }
+	    goto loop_flags;
+
+	case 'l':
+	    size = -1;
+	    flags &= ~SFFMT_TYPES;
+	    if (*form == 'l') {
+		form += 1;
+		flags |= SFFMT_LLONG;
+	    } else
+		flags |= SFFMT_LONG;
+	    goto loop_flags;
+	case 'h':
+	    size = -1;
+	    flags &= ~SFFMT_TYPES;
+	    if (*form == 'h') {
+		form += 1;
+		flags |= SFFMT_SSHORT;
+	    } else
+		flags |= SFFMT_SHORT;
+	    goto loop_flags;
+	case 'L':
+	    size = -1;
+	    flags = (flags & ~SFFMT_TYPES) | SFFMT_LDOUBLE;
+	    goto loop_flags;
+	case 'j':
+	    size = -1;
+	    flags = (flags & ~SFFMT_TYPES) | SFFMT_JFLAG;
+	    goto loop_flags;
+	case 'z':
+	    size = -1;
+	    flags = (flags & ~SFFMT_TYPES) | SFFMT_ZFLAG;
+	    goto loop_flags;
+	case 't':
+	    size = -1;
+	    flags = (flags & ~SFFMT_TYPES) | SFFMT_TFLAG;
+	    goto loop_flags;
+	default: // continue with logic below
+	    break;
+	}
+
+	/* set object size */
+	if (flags & (SFFMT_TYPES & ~SFFMT_IFLAG)) {
+	    if ((_Sftype[fmt] & (SFFMT_INT | SFFMT_UINT)) || fmt == 'n') {
+		size = (flags & SFFMT_LLONG)  ? (ssize_t)sizeof(long long) :
+		       (flags & SFFMT_LONG)   ? (ssize_t)sizeof(long) :
+		       (flags & SFFMT_SHORT)  ? (ssize_t)sizeof(short) :
+		       (flags & SFFMT_SSHORT) ? (ssize_t)sizeof(char) :
+		       (flags & SFFMT_JFLAG)  ? (ssize_t)sizeof(long long) :
+		       (flags & SFFMT_TFLAG)  ? (ssize_t)sizeof(ptrdiff_t) :
+		       (flags & SFFMT_ZFLAG)  ? (ssize_t)sizeof(size_t) : -1;
+	    } else if (_Sftype[fmt] & SFFMT_FLOAT) {
+		size = (flags & SFFMT_LDOUBLE)              ? (ssize_t)sizeof(long double) :
+		       (flags & (SFFMT_LONG | SFFMT_LLONG)) ? (ssize_t)sizeof(double) : -1;
+	    }
+	}
+
+	FMTSET(ft, form, fmt, size, flags, width, 0, base, t_str, n_str);
+	v = ft->extf(&argv, ft);
+
+	if (v < 0)
+	    goto done;
+	else if (v == 0) { // extf did not use input stream
+	    FMTGET(ft, form, fmt, size, flags, width, (int){0}, base);
+	    if ((ft->flags & SFFMT_VALUE) && !(ft->flags & SFFMT_SKIP))
+		value = argv.vp;
+	} else { // v > 0: number of input bytes consumed
+	    n_input += v;
+	    if (!(ft->flags & SFFMT_SKIP))
+		n_assign += 1;
+	    continue;
+	}
+
+	if (_Sftype[fmt] == 0)	/* unknown pattern */
+	    continue;
+
+	assert(!(!value && !(flags & SFFMT_SKIP)));
+
+	if (fmt == 'n') {	/* return length of consumed input */
+	    if (sizeof(long) > sizeof(int) && FMTCMP(size, long, long long))
+		*((long *) value) = (long)n_input;
+	    else if (sizeof(short) < sizeof(int) && FMTCMP(size, short, long long))
+		*((short *) value) = (short)n_input;
+	    else if (size == sizeof(char))
+		*((char *) value) = (char)n_input;
+	    else
+		*((int *) value) = (int)n_input;
+	    continue;
+	}
+
+	/* if get here, start scanning input */
+	if (width == 0)
+	    width = fmt == 'c' ? 1 : MAXWIDTH;
+
+	/* define the first input character */
+	if (fmt == 'c' || fmt == '[')
+	    SFGETC(f, inp);
+	else {
+	    do {
+		SFGETC(f, inp);
+	    }
+	    while (gv_isspace(inp)) // skip starting blanks
+	    ;
+	}
+	if (inp < 0)
+	    goto done;
+
+	if (_Sftype[fmt] == SFFMT_FLOAT) {
+	    char *val;
+
+	    val = accept;
+	    if (width >= 0 && (size_t)width >= SF_MAXDIGITS)
+		width = SF_MAXDIGITS - 1;
+	    int exponent = 0;
+	    bool seen_dot = false;
+	    do {
+		if (gv_isdigit(inp))
+		    *val++ = inp;
+		else if (inp == '.') {	/* too many dots */
+		    if (seen_dot)
+			break;
+		    seen_dot = true;
+		    *val++ = '.';
+		} else if (inp == 'e' || inp == 'E') {	/* too many e,E */
+		    if (exponent++ > 0)
+			break;
+		    *val++ = inp;
+		    if (--width <= 0 || SFGETC(f, inp) < 0 ||
+			(inp != '-' && inp != '+' && !gv_isdigit(inp)))
+			break;
+		    *val++ = inp;
+		} else if (inp == '-' || inp == '+') {	/* too many signs */
+		    if (val > accept)
+			break;
+		    *val++ = inp;
+		} else
+		    break;
+
+	    } while (--width > 0 && SFGETC(f, inp) >= 0);
+
+	    if (value) {
+		*val = '\0';
+		    argv.d = strtod(accept, NULL);
+
+		n_assign += 1;
+		if (FMTCMP(size, double, long double))
+		    *((double *) value) = argv.d;
+		else
+		    *((float *) value) = (float) argv.d;
+	    }
+	} else if (_Sftype[fmt] == SFFMT_UINT || fmt == 'p') {
+	    if (inp == '-') {
+		SFUNGETC(f, inp);
+		goto done;
+	    } else
+		goto int_cvt;
+	} else if (_Sftype[fmt] == SFFMT_INT) {
+	  int_cvt:
+	    if (inp == '-' || inp == '+') {
+		if (inp == '-')
+		    flags |= SFFMT_MINUS;
+		while (--width > 0 && SFGETC(f, inp) >= 0)
+		    if (!gv_isspace(inp))
+			break;
+	    }
+	    if (inp < 0)
+		goto done;
+
+	    if (fmt == 'o')
+		base = 8;
+	    else if (fmt == 'x' || fmt == 'p')
+		base = 16;
+	    else if (fmt == 'i' && inp == '0') {	/* self-described data */
+		base = 8;
+		if (width > 1) {	/* peek to see if it's a base-16 */
+		    if (SFGETC(f, inp) >= 0) {
+			if (inp == 'x' || inp == 'X')
+			    base = 16;
+			SFUNGETC(f, inp);
+		    }
+		    inp = '0';
+		}
+	    }
+
+	    /* now convert */
+	    argv.lu = 0;
+	    if (base == 16) {
+		sp = (char *) _Sfcv36;
+		shift = 4;
+		if (sp[inp] >= 16) {
+		    SFUNGETC(f, inp);
+		    goto done;
+		}
+		if (inp == '0' && --width > 0) {	/* skip leading 0x or 0X */
+		    if (SFGETC(f, inp) >= 0 &&
+			(inp == 'x' || inp == 'X') && --width > 0)
+			SFGETC(f, inp);
+		}
+		if (inp >= 0 && sp[inp] < 16)
+		    goto base_shift;
+	    } else if (base == 10) {	/* fast base 10 conversion */
+		if (inp < '0' || inp > '9') {
+		    SFUNGETC(f, inp);
+		    goto done;
+		}
+
+		do {
+		    argv.lu =
+			(argv.lu << 3) + (argv.lu << 1) + (inp - '0');
+		} while (--width > 0 && SFGETC(f, inp) >= '0'
+			 && inp <= '9');
+
+		if (fmt == 'i' && inp == '#' && !(flags & SFFMT_ALTER)) {
+		    base = (int) argv.lu;
+		    if (base < 2 || base > SF_RADIX)
+			goto done;
+		    argv.lu = 0;
+		    sp = base <= 36 ? (char *) _Sfcv36 : (char *) _Sfcv64;
+		    if (--width > 0 &&
+			SFGETC(f, inp) >= 0 && sp[inp] < base)
+			goto base_conv;
+		}
+	    } else {		/* other bases */
+		sp = base <= 36 ? (char *) _Sfcv36 : (char *) _Sfcv64;
+		if (base < 2 || base > SF_RADIX || sp[inp] >= base) {
+		    SFUNGETC(f, inp);
+		    goto done;
+		}
+
+	      base_conv:	/* check for power of 2 conversions */
+		if ((base & ~(base - 1)) == base) {
+		    if (base < 8)
+			shift = base < 4 ? 1 : 2;
+		    else if (base < 32)
+			shift = base < 16 ? 3 : 4;
+		    else
+			shift = base < 64 ? 5 : 6;
+
+		  base_shift:do {
+			argv.lu = (argv.lu << shift) + sp[inp];
+		    } while (--width > 0 &&
+			     SFGETC(f, inp) >= 0 && sp[inp] < base);
+		} else {
+		    do {
+			argv.lu = (argv.lu * base) + sp[inp];
+		    } while (--width > 0 &&
+			     SFGETC(f, inp) >= 0 && sp[inp] < base);
+		}
+	    }
+
+	    if (flags & SFFMT_MINUS)
+		argv.ll = -argv.ll;
+
+	    if (value) {
+		n_assign += 1;
+
+		if (fmt == 'p') {
+		    *((void **) value) = (void *)(uintptr_t)argv.lu;
+		} else if (sizeof(long) > sizeof(int) && FMTCMP(size, long, long long)) {
+		    if (fmt == 'd' || fmt == 'i')
+			*((long *) value) = (long) argv.ll;
+		    else
+			*((ulong *) value) = (ulong) argv.lu;
+		} else if (sizeof(short) < sizeof(int) && FMTCMP(size, short, long long)) {
+		    if (fmt == 'd' || fmt == 'i')
+			*((short *) value) = (short) argv.ll;
+		    else
+			*((ushort *) value) = (ushort) argv.lu;
+		} else if (size == sizeof(char)) {
+		    if (fmt == 'd' || fmt == 'i')
+			*((char *) value) = (char) argv.ll;
+		    else
+			*((uchar *) value) = (uchar) argv.lu;
+		} else {
+		    if (fmt == 'd' || fmt == 'i')
+			*((int *) value) = (int) argv.ll;
+		    else
+			*((unsigned*)value) = (unsigned)argv.lu;
+		}
+	    }
+	} else if (fmt == 's' || fmt == 'c' || fmt == '[') {
+	    if (size < 0)
+		size = MAXWIDTH;
+	    if (value) {
+		argv.s = value;
+		if (fmt != 'c')
+		    size -= 1;
+	    } else
+		size = 0;
+
+	    int n = 0;
+	    if (fmt == 's') {
+		do {
+		    if (gv_isspace(inp))
+			break;
+		    if ((n += 1) <= size)
+			*argv.s++ = inp;
+		} while (--width > 0 && SFGETC(f, inp) >= 0);
+	    } else if (fmt == 'c') {
+		do {
+		    if ((n += 1) <= size)
+			*argv.s++ = inp;
+		} while (--width > 0 && SFGETC(f, inp) >= 0);
+	    } else {		/* if(fmt == '[') */
+		bool accepted[UCHAR_MAX + 1];
+		form = (const char*)setclass((const unsigned char*)form, accepted);
+		do {
+		    if (!accepted[inp]) {
+			if (n > 0 || (flags & SFFMT_ALTER))
+			    break;
+			else {
+			    SFUNGETC(f, inp);
+			    goto done;
+			}
+		    }
+		    if ((n += 1) <= size)
+			*argv.s++ = inp;
+		} while (--width > 0 && SFGETC(f, inp) >= 0);
+	    }
+
+	    if (value && (n > 0 || fmt == '[')) {
+		n_assign += 1;
+		if (fmt != 'c' && size >= 0)
+		    *argv.s = '\0';
+	    }
+	}
+
+	if (width > 0 && inp >= 0)
+	    SFUNGETC(f, inp);
+    }
+
+  done:
+
+    if (n_assign == 0 && inp < 0)
+	n_assign = -1;
+
+    return n_assign;
+}

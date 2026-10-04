@@ -1,0 +1,59 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at http://www.graphviz.org/
+ *************************************************************************/
+
+#import "GVGraphArguments.h"
+#import "GVZGraph.h"
+
+@implementation GVGraphArguments
+
+- (id)initWithGraph:(GVZGraph *)graph
+{
+	if (self = [super init]) {
+		_graph = graph;	/* no retain to avoid a retain cycle */
+		_arguments = [[NSMutableDictionary alloc] init];
+	}
+	return self;
+}
+
+- (NSUInteger)count
+{
+	return [_arguments count];
+}
+
+- (NSEnumerator *)keyEnumerator
+{
+	return [_arguments keyEnumerator];
+}
+
+- (id)objectForKey:(id)aKey
+{
+	return [_arguments objectForKey:aKey];
+}
+
+/* mutable dictionary primitive methods */
+- (void)setObject:(id)anObject forKey:(id)aKey
+{
+	[_arguments setObject:anObject forKey:aKey];
+	[_graph noteChanged:YES];
+}
+
+- (void)removeObjectForKey:(id)aKey
+{
+	[_arguments removeObjectForKey:aKey];
+	[_graph noteChanged:YES];
+}
+
+- (void)dealloc
+{
+	[_arguments release];
+	[super dealloc];
+}
+
+@end

@@ -1,0 +1,4 @@
+BEGIN {
+  void void1;
+  print(void1);
+}

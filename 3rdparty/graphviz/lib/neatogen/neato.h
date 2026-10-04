@@ -1,0 +1,47 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+#pragma once
+
+#include <util/api.h>
+#include "config.h"
+
+#define MODEL_SHORTPATH      0
+#define MODEL_CIRCUIT        1
+#define MODEL_SUBSET         2
+#define MODEL_MDS            3
+
+#define MODE_KK          0
+#define MODE_MAJOR       1
+#define MODE_HIER        2
+#define MODE_IPSEP       3
+#define MODE_SGD         4
+
+#define INIT_ERROR       -1
+#define INIT_SELF        0
+#define INIT_REGULAR     1
+#define INIT_RANDOM      2
+
+#include	"render.h"
+#include	"pathplan.h"
+#include	<neatogen/neatoprocs.h>
+#include	<neatogen/adjust.h>
+
+/// state for working on LU decomposition
+typedef struct {
+  double **lu; ///< composite of upper and lower triangular matrices
+  int *ps;     ///< pivot sequence
+} lu_t;
+
+PRIVATE int lu_decompose(lu_t *lu, double **a, int n);
+PRIVATE void lu_solve(const lu_t *lu, double *x, int bi, int n);
+
+/// release resources relating to LU decomposition
+PRIVATE void lu_free(lu_t *lu);

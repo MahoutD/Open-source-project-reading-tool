@@ -1,0 +1,8 @@
+# Prevent git from interpreting dot as Microsoft Word documents while diffing.
+*.dot !diff
+*.DOT !diff
+
+# always use Unix line endings in Unix-only files
+*.ac text eol=lf
+*.am text eol=lf
+*.sh text eol=lf

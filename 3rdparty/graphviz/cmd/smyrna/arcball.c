@@ -1,0 +1,141 @@
+/*************************************************************************************/
+/**                                                                                 **/
+/** Copyright (c) 1999-2009 Tatewake.com                                            **/
+/**                                                                                 **/
+/** Permission is hereby granted, free of charge, to any person obtaining a copy    **/
+/** of this software and associated documentation files (the "Software"), to deal   **/
+/** in the Software without restriction, including without limitation the rights    **/
+/** to use, copy, modify, merge, publish, distribute, sublicense, and/or sell       **/
+/** copies of the Software, and to permit persons to whom the Software is           **/
+/** furnished to do so, subject to the following conditions:                        **/
+/**                                                                                 **/
+/** The above copyright notice and this permission notice shall be included in      **/
+/** all copies or substantial portions of the Software.                             **/
+/**                                                                                 **/
+/** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR      **/
+/** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,        **/
+/** FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE     **/
+/** AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER          **/
+/** LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,   **/
+/** OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN       **/
+/** THE SOFTWARE.                                                                   **/
+/**                                                                                 **/
+/*************************************************************************************/
+
+#include "config.h"
+
+#include <glcomp/glcompdefs.h>
+#include <math.h>
+#define ARCBALL_C
+#include "smyrnadefs.h"
+#include "arcball.h"
+
+static void setBounds(ArcBall_t *a, double NewWidth, double NewHeight) {
+    assert(NewWidth > 1.0 && NewHeight > 1.0);
+    //Set adjustment factor for width/height
+    a->AdjustWidth = 1.0 / ((NewWidth - 1.0) * 0.5);
+    a->AdjustHeight = 1.0 / ((NewHeight - 1.0) * 0.5);
+}
+
+static Vector3fT mapToSphere(ArcBall_t *a, const Point2fT *NewPt) {
+    Point2fT TempPt;
+
+    //Copy paramter into temp point
+    TempPt = *NewPt;
+
+    //Adjust point coords and scale down to range of [-1 ... 1]
+    TempPt.X = TempPt.X * a->AdjustWidth - 1.0;
+    TempPt.Y = 1.0 - TempPt.Y * a->AdjustHeight;
+
+    //Compute the square of the length of the vector to the point from the center
+    double length = TempPt.X * TempPt.X + TempPt.Y * TempPt.Y;
+
+    //If the point is mapped outside of the sphere... (length > radius squared)
+    if (length > 1.0) {
+
+	//Compute a normalizing factor (radius / sqrt(length))
+	double norm = 1.0 / sqrt(length);
+
+	//Return the "normalized" vector, a point on the sphere
+	return (Vector3fT){.X = TempPt.X * norm, .Y = TempPt.Y * norm};
+    } else			//Else it's on the inside
+    {
+	//Return a vector to a point mapped inside the sphere sqrt(radius squared - length)
+	return (Vector3fT){.X = TempPt.X, .Y = TempPt.Y, .Z = sqrt(1.0 - length)};
+    }
+}
+
+static Matrix4fT Transform = { {1.0, 0, 0, 0,	// NEW: Final Transform
+				0, 1.0, 0, 0,
+				0, 0, 1.0, 0,
+				0, 0, 0, 1.0}
+};
+
+static Matrix3fT LastRot = { {1.0, 0, 0,	// NEW: Last Rotation
+			      0, 1.0, 0,
+			      0, 0, 1.0}
+};
+
+static Matrix3fT ThisRot = { {1.0, 0, 0,	// NEW: This Rotation
+			      0, 1.0, 0,
+			      0, 0, 1.0}
+};
+
+//Create/Destroy
+ArcBall_t init_arcBall(double NewWidth, double NewHeight) {
+    ArcBall_t a = {.Transform = Transform, .LastRot = LastRot,
+                   .ThisRot = ThisRot};
+
+    //Set initial bounds
+    setBounds(&a, NewWidth, NewHeight);
+    return a;
+}
+
+//Mouse down
+static void click(ArcBall_t * a, const Point2fT * NewPt)
+{
+    //Map the point to the sphere
+    a->StVec = mapToSphere(a, NewPt);
+}
+
+//Mouse drag, calculate rotation
+static Quat4fT drag(ArcBall_t *a, const Point2fT *NewPt) {
+    //Map the point to the sphere
+    a->EnVec = mapToSphere(a, NewPt);
+
+    //Return the quaternion equivalent to the rotation
+    // compute the vector perpendicular to the begin and end vectors
+    const Vector3fT Perp = Vector3fCross(a->StVec, a->EnVec);
+    
+    // compute the length of the perpendicular vector
+    if (Vector3fLength(Perp) > Epsilon) { // if it’s non-zero
+        // we're OK, so return the perpendicular vector as the transform after
+        // all
+        return (Quat4fT){.X = Perp.X,
+                         .Y = Perp.Y,
+                         .Z = Perp.Z,
+        // in the quaternion values, W is cosine (theta / 2), where theta is
+        // rotation angle
+                         .W = Vector3fDot(a->StVec, a->EnVec)};
+    } else { // if it’s zero
+        // the begin and end vectors coincide, so return an identity transform
+        return (Quat4fT){0};
+    }
+}
+
+void arcmouseClick(void)
+{
+    view->arcball->isDragging = 1;	// Prepare For Dragging
+    view->arcball->LastRot = view->arcball->ThisRot;	// Set Last Static Rotation To Last Dynamic One
+    click(view->arcball, &view->arcball->MousePt);
+
+}
+
+void arcmouseDrag(void)
+{
+    Quat4fT ThisQuat = drag(view->arcball, &view->arcball->MousePt);
+    view->arcball->ThisRot = Matrix3fSetRotationFromQuat4f(ThisQuat); // Convert Quaternion Into Matrix3fT
+    Matrix3fMulMatrix3f(&view->arcball->ThisRot, view->arcball->LastRot);	// Accumulate Last Rotation Into This One
+    Matrix4fSetRotationFromMatrix3f(&view->arcball->Transform, &view->arcball->ThisRot);	// Set Our Final Transform's Rotation From This One
+
+}

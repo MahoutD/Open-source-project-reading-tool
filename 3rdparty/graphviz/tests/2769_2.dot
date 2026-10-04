@@ -1,0 +1,6 @@
+graph {
+  graph [packmode=array]
+  subgraph cluster_x { a }
+  cluster_x
+  b
+}

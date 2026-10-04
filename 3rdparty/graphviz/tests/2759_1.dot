@@ -1,0 +1,12 @@
+// based on  https://gitlab.com/graphviz/graphviz/-/work_items/2759
+digraph {
+  0 -> 0 [label=0]
+  {
+    subgraph cluster {
+      A00000000
+      Act000 
+      A Act004 -> A00000000
+    }
+  }
+  {Act000 -> Act004 rank=same}
+}

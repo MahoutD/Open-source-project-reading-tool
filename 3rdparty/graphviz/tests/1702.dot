@@ -1,0 +1,6 @@
+digraph BadRotation {
+
+  A->B;
+  B->C;
+  C->D;
+}

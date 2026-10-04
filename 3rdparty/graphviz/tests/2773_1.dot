@@ -1,0 +1,6 @@
+// based on https://gitlab.com/graphviz/graphviz/-/work_items/2773
+digraph  {
+  0 
+  0 -> Se3ffa81011d69e3db000538bf02fa1d0  
+  Se3ffa81011d69e3db000538bf02fa1d0 -> S0 [ fontsize=607167449005158804 label="Inse;"] 
+}

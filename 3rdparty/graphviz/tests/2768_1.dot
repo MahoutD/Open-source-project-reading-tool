@@ -1,0 +1,10 @@
+// based on https://gitlab.com/graphviz/graphviz/-/work_items/2768
+
+graph {
+  graph [ packmode=array ]  //  this is legal
+  cluster0b0                //  name is reused below
+  subgraph cluster0b0 {     //  reuse of name 
+    h
+  }
+  { a b c }  // does not crash if commented  (moved from above cluster)
+}

@@ -1,0 +1,26 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+#import <UIKit/UIKit.h>
+
+@interface GVTextLayout : NSObject
+{
+	UIFont* _font;
+	NSString* _text;
+}
+
+- (id)initWithFontName:(char*)fontName fontSize:(CGFloat)fontSize text:(char*)text;
+
+- (void)sizeUpWidth:(double*)width height:(double*)height yoffset:(double*)yoffset;
+- (void)drawInContext:(CGContextRef)context atPosition:(CGPoint)position;
+
+- (void)dealloc;
+
+@end

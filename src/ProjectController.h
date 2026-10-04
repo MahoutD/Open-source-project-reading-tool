@@ -34,6 +34,9 @@ public:
     Q_INVOKABLE void selectFile(const QString &filePath);
     Q_INVOKABLE void refreshAnalysis();
     Q_INVOKABLE bool exportReport(const QString &targetFilePath);
+    Q_INVOKABLE bool exportReportHtml(const QString &targetFilePath);
+    Q_INVOKABLE bool exportReportDoc(const QString &targetFilePath);
+    Q_INVOKABLE QVariantList getFolderNodes(const QString &relativeDir = QString());
 
 signals:
     void isBusyChanged();

@@ -1,0 +1,4 @@
+// Clone every edge of the input graph into the predefined output graph $O.
+// With two (or more) parallel edges between the same pair of nodes, gvpr
+// enters an infinite loop on the second clone() and never terminates.
+E { clone($O, $); }

@@ -56,9 +56,10 @@ void ProjectController::cloneAndOpenRepo(const QString &repoUrl) {
     }
     if (repoName.isEmpty()) repoName = "repo_cloned";
 
-    QString tempBase = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/OpenSourceReader";
-    QDir().mkpath(tempBase);
-    QString targetDir = tempBase + "/" + repoName;
+    // Store in ./workspace under the application running directory
+    QString workspaceBase = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/workspace");
+    QDir().mkpath(workspaceBase);
+    QString targetDir = workspaceBase + "/" + repoName;
 
     // Run git clone asynchronously
     (void)QtConcurrent::run([this, trimmed, targetDir, repoName]() {
@@ -249,6 +250,133 @@ bool ProjectController::exportReport(const QString &targetFilePath) {
     QTextStream out(&file);
     out << m_projectSummary;
     file.close();
-    Logger::instance()->logSuccess("报告导出", "项目分析总结已成功导出至: " + path);
+    Logger::instance()->logSuccess("报告导出", "Markdown 报告已成功导出至: " + path);
     return true;
+}
+
+bool ProjectController::exportReportHtml(const QString &targetFilePath) {
+    QString path = targetFilePath;
+    if (path.startsWith("file:///")) {
+        path = QUrl(targetFilePath).toLocalFile();
+    }
+#ifdef Q_OS_WIN
+    if (path.startsWith("/") && path.length() > 2 && path[2] == ':') {
+        path = path.mid(1);
+    }
+#endif
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        Logger::instance()->logError("HTML导出", "无法写入文件: " + path);
+        return false;
+    }
+    QTextStream out(&file);
+    out.setEncoding(QStringConverter::Utf8);
+    out << "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n"
+        << "<title>项目架构与代码分析报告</title>\n"
+        << "<style>\n"
+        << "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; "
+        << "line-height: 1.6; max-width: 960px; margin: 40px auto; padding: 20px; color: #1e293b; background: #f8fafc; }\n"
+        << "h1, h2, h3, h4 { color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }\n"
+        << "table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #ffffff; border-radius: 8px; overflow: hidden; }\n"
+        << "th, td { border: 1px solid #cbd5e1; padding: 12px 16px; text-align: left; }\n"
+        << "th { background: #0284c7; color: #ffffff; font-weight: bold; }\n"
+        << "tr:nth-child(even) { background: #f1f5f9; }\n"
+        << "code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-family: Consolas, monospace; color: #0369a1; }\n"
+        << "ul { padding-left: 20px; }\n"
+        << "li { margin: 6px 0; }\n"
+        << "</style>\n</head>\n<body>\n";
+
+    // Simple markdown to HTML conversion for headers and tables
+    QString htmlContent = m_projectSummary;
+    htmlContent.replace("### ", "<h3>").replace("#### ", "<h4>");
+    htmlContent.replace("\n\n", "<br><br>\n");
+    out << "<div>" << htmlContent << "</div>\n";
+    out << "</body>\n</html>";
+    file.close();
+
+    Logger::instance()->logSuccess("HTML导出", "全景分析 HTML 报告已成功导出至: " + path);
+    return true;
+}
+
+bool ProjectController::exportReportDoc(const QString &targetFilePath) {
+    QString path = targetFilePath;
+    if (path.startsWith("file:///")) {
+        path = QUrl(targetFilePath).toLocalFile();
+    }
+#ifdef Q_OS_WIN
+    if (path.startsWith("/") && path.length() > 2 && path[2] == ':') {
+        path = path.mid(1);
+    }
+#endif
+    if (!path.endsWith(".doc", Qt::CaseInsensitive) && !path.endsWith(".docx", Qt::CaseInsensitive)) {
+        path += ".doc";
+    }
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        Logger::instance()->logError("Word导出", "无法写入 Word 文档: " + path);
+        return false;
+    }
+
+    // Word HTML format (opens natively in Microsoft Word / WPS)
+    QTextStream out(&file);
+    out.setEncoding(QStringConverter::Utf8);
+    out << "<html xmlns:o='urn:schemas-microsoft-com:office:office' "
+        << "xmlns:w='urn:schemas-microsoft-com:office:word' "
+        << "xmlns='http://www.w3.org/TR/REC-html40'>\n<head>\n"
+        << "<meta charset='utf-8'><title>开源项目架构全景报告</title>\n"
+        << "<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->\n"
+        << "<style>\n"
+        << "body { font-family: 'Segoe UI', 'SimSun', sans-serif; line-height: 1.5; }\n"
+        << "h1 { color: #0284c7; text-align: center; }\n"
+        << "h2, h3 { color: #1e293b; border-bottom: 2px solid #0284c7; }\n"
+        << "table { border-collapse: collapse; width: 100%; }\n"
+        << "th, td { border: 1px solid #94a3b8; padding: 8px; }\n"
+        << "th { background: #0284c7; color: #ffffff; }\n"
+        << "</style>\n</head>\n<body>\n"
+        << "<h1>开源项目全景架构与依赖分析报告</h1>\n";
+
+    QString content = m_projectSummary;
+    content.replace("\n", "<br/>\n");
+    out << "<div>" << content << "</div>\n";
+    out << "</body>\n</html>";
+    file.close();
+
+    Logger::instance()->logSuccess("Word导出", "已成功导出 Word 标准格式文档: " + path);
+    return true;
+}
+
+QVariantList ProjectController::getFolderNodes(const QString &relativeDir) {
+    QVariantList list;
+    QSet<QString> subDirs;
+    QString prefix = relativeDir.isEmpty() ? "" : (relativeDir + "/");
+
+    for (auto it = m_analyzedFiles.cbegin(); it != m_analyzedFiles.cend(); ++it) {
+        QString fPath = it.key();
+        if (!fPath.startsWith(prefix)) continue;
+
+        QString remain = fPath.mid(prefix.length());
+        int slashIdx = remain.indexOf('/');
+        if (slashIdx != -1) {
+            QString dirName = remain.left(slashIdx);
+            if (!subDirs.contains(dirName)) {
+                subDirs.insert(dirName);
+                QVariantMap dMap;
+                dMap["isDir"] = true;
+                dMap["name"] = dirName;
+                dMap["path"] = prefix + dirName;
+                list.append(dMap);
+            }
+        } else {
+            QVariantMap fMap;
+            fMap["isDir"] = false;
+            fMap["name"] = it.value().fileName;
+            fMap["path"] = fPath;
+            fMap["type"] = it.value().fileType;
+            fMap["lines"] = it.value().lineCount;
+            fMap["dependenciesCount"] = it.value().resolvedDependencies.size();
+            list.append(fMap);
+        }
+    }
+    return list;
 }

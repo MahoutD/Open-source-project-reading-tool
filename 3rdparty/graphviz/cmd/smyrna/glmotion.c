@@ -1,0 +1,84 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+#include "config.h"
+
+#include "glmotion.h"
+#include <gtk/gtk.h>
+#include <gdk/gdkkeysyms.h>
+#include <gtk/gtkgl.h>
+#include <gdk/gdkcursor.h>
+#include "draw.h"
+#include <glcomp/glutils.h>
+#include "hotkeymap.h"
+#include <stdint.h>
+
+/*real zoom in out is done here, all other functions send this one what they desire, it is not guranteed,*/
+static void graph_zoom(double real_zoom) {
+    double old_zoom;
+
+    if (view->active_camera == SIZE_MAX)
+		old_zoom = view->zoom;
+    else
+		old_zoom = view->cameras[view->active_camera]->r;
+
+    if (real_zoom < view->Topview->fitin_zoom * MAX_ZOOM)
+		real_zoom = view->Topview->fitin_zoom * MAX_ZOOM;
+    if (real_zoom > view->Topview->fitin_zoom * MIN_ZOOM)
+		real_zoom = view->Topview->fitin_zoom * MIN_ZOOM;
+    if (view->active_camera == SIZE_MAX)
+		view->zoom = real_zoom;
+    else
+		view->cameras[view->active_camera]->r = real_zoom * -1;
+    /*adjust pan values */
+    view->panx = old_zoom * view->panx / real_zoom;
+    view->pany = old_zoom * view->pany / real_zoom;
+}
+
+void glmotion_zoom_inc(int zoomin)
+{
+    if (zoomin)			/*zooming in , zoom value should be decreased */
+	graph_zoom(view->zoom - view->zoom * 0.25);
+    else
+	graph_zoom(view->zoom + view->zoom * 0.25);	/*zoom out */
+    glexpose();
+
+}
+
+void glmotion_zoom(void)
+{
+    double real_zoom;
+    if (view->active_camera == SIZE_MAX) {
+	real_zoom =
+	    view->zoom + view->mouse.dragX / 10 * (view->zoom * -1 / 20);
+    } else {
+	real_zoom =
+	    (view->cameras[view->active_camera]->r +
+	     view->mouse.dragX / 10 * (view->cameras[view->active_camera]->r /
+				    20)) * -1;
+    }
+    graph_zoom(real_zoom);
+
+}
+
+void glmotion_pan(ViewInfo * v)
+{
+    if (v->active_camera == SIZE_MAX) {
+	const double gldx = GetOGLDistance(v->mouse.dragX) / v->zoom * -1;
+	const double gldy = GetOGLDistance(v->mouse.dragY) / v->zoom * -1;
+	v->panx = v->panx - gldx;
+	v->pany = v->pany + gldy;
+    } else {
+	const double gldx = GetOGLDistance(v->mouse.dragX) / v->cameras[v->active_camera]->r;
+	const double gldy = GetOGLDistance(v->mouse.dragY) / v->cameras[v->active_camera]->r;
+	v->cameras[v->active_camera]->targetx -= gldx;
+	v->cameras[v->active_camera]->targety += gldy;
+    }
+}

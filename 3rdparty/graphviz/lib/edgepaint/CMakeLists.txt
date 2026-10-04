@@ -1,0 +1,25 @@
+add_library(edgepaintlib STATIC
+  edge_distinct_coloring.c
+  furtherest_point.c
+  intersection.c
+  lab.c
+  lab_gamut.c
+  node_distinct_coloring.c
+)
+
+target_include_directories(edgepaintlib PRIVATE
+  ..
+  ../cdt
+  ../cgraph
+  ../common
+  ../gvc
+  ../pathplan
+)
+
+target_link_libraries(edgepaintlib PRIVATE util)
+
+# work around needed for an object library
+# https://gitlab.com/graphviz/graphviz/-/issues/1613
+if(APPLE)
+  target_compile_options(edgepaintlib PRIVATE "-fno-common")
+endif()

@@ -1,0 +1,19 @@
+digraph G {
+  ordering=out;
+  A -> B
+  B -> C
+  B -> D
+  D -> F
+  E -> D
+  E -> F
+
+  subgraph cluster_c17 {
+    B
+    C
+    D
+  }
+  subgraph cluster_c18 {
+    E
+    F
+  }
+}

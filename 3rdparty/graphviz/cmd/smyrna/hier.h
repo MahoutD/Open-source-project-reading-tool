@@ -1,0 +1,36 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+#pragma once
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <topfish/hierarchy.h>
+
+    typedef struct {
+	int num_foci;
+	int *foci_nodes;	/* Nodes in real graph */
+	double *x_foci;		/* Universal coordinates */
+	double *y_foci;
+    } focus_t;
+
+    typedef struct {
+  // all must be set
+	double width; ///< viewport width
+	double height; ///< viewport height
+	double distortion;	/* default of 1.0 */
+    } reposition_t;
+
+    void positionAllItems(Hierarchy * hp, focus_t * fs,
+			  reposition_t * parms);
+Hierarchy *makeHier(int nnodes, int nedges, v_data *, double *, double *,
+                    bool dist2_limit);
+
+focus_t *initFocus(size_t ncnt);

@@ -1,0 +1,22 @@
+graph abc {
+  subgraph clusterX {
+    style="dashed,rounded" color=purple
+  }
+  subgraph clusterY {
+    margin=22
+    style="dotted,bold" color=green
+  }
+}
+//////////////////////////////////////////////
+graph G {  
+  ranksep=.4
+  edge[style=invis]
+  subgraph "cluster1" {
+    margin=38
+    labelloc=b
+    label="192.168.135.101";
+    master    server1 server2
+    master -- server1 -- server2;
+  }
+  label="my graph"
+}

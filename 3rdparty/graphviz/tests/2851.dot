@@ -1,0 +1,10 @@
+digraph {
+rankdir=LR;
+A->x1[minlen=0,label="aaaaaaa"];
+A->x2[minlen=0,label="bbbbbbbbbbbb"];
+x1->H[minlen=0,label="ccccc"];
+x3->H[minlen=0,label="ddddddddddd"];
+x3->H[minlen=0,label="eeeeeeeeeeee"];
+H->T[minlen=0,label="fff"];
+subgraph cluster1 { x1; x2; x3; }
+}

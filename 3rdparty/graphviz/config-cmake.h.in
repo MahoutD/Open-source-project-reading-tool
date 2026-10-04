@@ -1,0 +1,52 @@
+// Include headers
+#cmakedefine HAVE_SYS_INOTIFY_H
+#cmakedefine HAVE_SYS_IOCTL_H
+#cmakedefine HAVE_SYS_MMAN_H
+#cmakedefine HAVE_SYS_SELECT_H
+#cmakedefine HAVE_SYS_TIME_H
+#cmakedefine HAVE_GETOPT_H
+
+// Functions
+#cmakedefine HAVE_DL_ITERATE_PHDR
+#cmakedefine HAVE_DRAND48
+#cmakedefine HAVE_INOTIFY_INIT1
+#cmakedefine HAVE_MEMRCHR
+#cmakedefine HAVE_PANGO_FC_FONT_LOCK_FACE
+#cmakedefine HAVE_SETENV
+#cmakedefine HAVE_SETMODE
+#cmakedefine HAVE_SRAND48
+#cmakedefine HAVE_STRCASESTR
+
+// Typedefs for missing types
+#ifdef _MSC_VER
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
+
+// Libraries
+#cmakedefine HAVE_DEVIL
+#cmakedefine HAVE_EXPAT
+#cmakedefine HAVE_FREETYPE
+#cmakedefine HAVE_LIBGD
+#cmakedefine HAVE_GD_PNG
+#cmakedefine HAVE_GD_JPEG
+#cmakedefine HAVE_GD_XPM
+#cmakedefine HAVE_GD_FONTCONFIG
+#cmakedefine HAVE_GD_FREETYPE
+#cmakedefine HAVE_LIBZ
+#cmakedefine HAVE_GTS
+#cmakedefine HAVE_PANGOCAIRO
+#cmakedefine HAVE_POPPLER
+#cmakedefine HAVE_QUARTZ
+#cmakedefine HAVE_RSVG
+#cmakedefine HAVE_WEBP
+
+// Values
+#define BROWSER "@BROWSER@"
+#define DEFAULT_DPI @DEFAULT_DPI@
+#define GVPLUGIN_CONFIG_FILE "@GVPLUGIN_CONFIG_FILE@"
+#define PACKAGE_VERSION "@GRAPHVIZ_VERSION@"
+
+// Conditional values
+#cmakedefine DARWIN
+#cmakedefine DARWIN_DYLIB

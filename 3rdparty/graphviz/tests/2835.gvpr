@@ -1,0 +1,39 @@
+/******************************************************************
+  bug in gvpr
+  - adding (cloning) clusters adds some cluster attributes to Root graph
+******************************************************************/
+BEG_G{
+ int      graphNo, nIndx, i, j;
+ float    x,y;
+ node_t   aNode, nodes[];
+ graph_t  dupG, aGraph, aCluster, dummyG;
+ string   B, newName="___NewNode_", grp[], tok[int];
+
+ graphNo++;
+ print("//  graphNo: ", graphNo);
+}
+BEG_G{
+ if (graphNo==1){  // minimal graph,  clusters(s), no nodes or edges !!!!!
+   dupG=cloneG($G,"");  // save this graph
+   print("// dupG ", $.name);
+   print("/////////////////////// 1st graph as input ////////////////////////////");
+   write($G);  // just to see what gvpr thinks is correct, so far
+ }else{  // "real" graph
+     print("/////////////////////// 2nd graph as input ////////////////////////////");
+     write($G);  // just to see what gvpr thinks is correct, so far
+    // add the clusters from the 1st graph to the "real" graph
+    for (aGraph = fstsubg(dupG); aGraph; aGraph = nxtsubg(aGraph)){
+      aCluster=clone($G, aGraph);
+      print("//  clone: ", aGraph.name);
+      print("/////////////////////// 2nd graph after clone ////////////////////////////");
+      print("//////////////////  NOTE: color & style attributes ///////////////////////");      
+      write($G);  // just to see what gvpr thinks is correct, so far
+    }
+ }
+}
+END_G{
+  if (graphNo==2){
+    print("/////////////////////// final graph ////////////////////////////");  
+    write($G);
+    }
+}

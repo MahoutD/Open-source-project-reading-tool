@@ -1,0 +1,12 @@
+strict digraph G { 
+  ordering=out;
+subgraph cluster_1{
+  A;B;C;
+}
+subgraph cluster_2{
+  D
+}
+A->B ;
+A->C ;  
+C->D [minlen=0]; 
+}

@@ -1,0 +1,52 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+#include <stddef.h>
+#include <util/list.h>
+
+#define SLOPE(p,q) ( ( ( p.y ) - ( q.y ) ) / ( ( p.x ) - ( q.x ) ) )
+#define MAX(a,b) ( ( a ) > ( b ) ? ( a ) : ( b ) )
+
+#define after(v) (((v)==((v)->poly->finish))?((v)->poly->start):((v)+1))
+#define prior(v) (((v)==((v)->poly->start))?((v)->poly->finish):((v)-1))
+
+    struct position {
+	double x, y;
+    };
+
+
+    struct vertex {
+	struct position pos;
+	struct polygon *poly;
+	struct active_edge *active;
+    };
+
+    struct polygon {
+	struct vertex *start, *finish;
+    };
+
+    struct intersection {
+	struct vertex *firstv, *secondv;
+	struct polygon *firstp, *secondp;
+	double x, y;
+    };
+
+typedef LIST(struct intersection) intersections_t;
+
+    struct active_edge {
+	struct vertex *name;
+    };
+
+void find_ints(struct vertex vertex_list[], size_t nvertices,
+               intersections_t *ilist);
+
+/// detect whether lines `l` and `m` intersect
+void find_intersection(struct vertex *l, struct vertex *m,
+                       intersections_t *ilist);

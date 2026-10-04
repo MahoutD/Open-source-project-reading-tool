@@ -1,0 +1,7 @@
+BEGIN {
+  void f2(void x) {
+    print("Rhubarb.");
+  }
+
+  f2();
+}

@@ -1,0 +1,12 @@
+// based on https://gitlab.com/graphviz/graphviz/-/work_items/2769
+graph {
+  graph [
+    packmode=array  //  array_ is questionably legal?? (seems to be)
+  ];
+  subgraph cluster_b2 {  //  name is reused below
+    ph
+  }
+  cluster_b2 {           // name is reused
+    xyz
+  }
+}

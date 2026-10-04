@@ -1,0 +1,10 @@
+// from https://gitlab.com/graphviz/graphviz/-/work_items/2781
+digraph {
+  rankdir="LR"
+  node[ height="1000000000000000000000000" ]
+  0 -> 00  [0=0]
+  {rank=same; 056; 006}
+  056 -> 006  [label="0"]
+  006 -> 056  [label="0"]
+  0 -> 6
+}

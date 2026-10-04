@@ -1,0 +1,77 @@
+digraph WT_Graph {
+	graph [bb="0,0,1234,190",
+		bgcolor="#eeeeee",
+		dpi=96,
+		nodesep=0.15,
+		rankdir=LR,
+		ranksep="0.27 equally",
+		splines=spline
+	];
+	node [font_size=10,
+		fontname=Arial,
+		label="\N",
+		shape=plaintext
+	];
+	edge [arrowhead=normal,
+		arrowtail=none,
+		style=solid
+	];
+	I57	[height=0.94444,
+		label=<<TABLE COLOR="#606060" BORDER="1" CELLBORDER="0" CELLPADDING="2" CELLSPACING="0" BGCOLOR="#fefefe" TARGET="_blank" HREF="https://genealogy.someplace.com/webtrees/tree/familia/individual/I57/Baruj-Palacci"><TR><TD COLSPAN="6" CELLPADDING="2" BGCOLOR="#add8e6" PORT="nam" ></TD></TR><TR><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_1" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ALIGN="LEFT" BALIGN="LEFT"  TARGET="_BLANK" CELLPADDING="4" PORT="dat"><FONT COLOR="#333333" POINT-SIZE="12">Baruj Palacci (I57)</FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">Male</FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">↑ 1865 </FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">↓ &gt; July 20, 1914 &lt; October 15, 1918 </FONT> </TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_2" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_3" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_4" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD CELLPADDING="10"></TD></TR></TABLE>>,
+		pos="893.75,156",
+		width=3.0486];
+	F7	[color="#606060",
+		fillcolor="#ffffee",
+		height=0.69611,
+		href="https://genealogy.someplace.com/webtrees/tree/familia/family/F7/Baruj-Palacci-Caden-Behora-Levy",
+		label=<<TABLE border="0" CELLPADDING="5" CELLSPACING="0"><TR><TD><FONT COLOR="#555555" POINT-SIZE="10"> <BR /> (F7)</FONT></TD></TR></TABLE>>,
+		margin=0.01,
+		pos="1207,115",
+		shape=oval,
+		style=filled,
+		target=_blank,
+		width=0.75];
+	I57 -> F7	[arrowsize=0.3,
+		color="#000000",
+		pos="e,1180,118.42 1003.2,141.72 1064.3,133.67 1136.1,124.21 1175.8,118.98",
+		style=dotted];
+	I19	[height=1.0278,
+		label=<<TABLE COLOR="#606060" BORDER="1" CELLBORDER="0" CELLPADDING="2" CELLSPACING="0" BGCOLOR="#fefefe" TARGET="_blank" HREF="https://genealogy.someplace.com/webtrees/tree/familia/individual/I19/Caden-Behora-Levy"><TR><TD COLSPAN="6" CELLPADDING="2" BGCOLOR="#ffb6c1" PORT="nam" ></TD></TR><TR><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_5" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ALIGN="LEFT" BALIGN="LEFT"  TARGET="_BLANK" CELLPADDING="4" PORT="dat"><FONT COLOR="#333333" POINT-SIZE="12">Caden Behora Levy (I19)</FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">Female</FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">↑ 1864 </FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">↓ November 22, 1951 (Distrito Federal, México)</FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">_  (Sección Sefaradí, Panteón Jardín, Distrito Federal, México)</FONT></TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_6" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_7" WIDTH="40" HEIGHT="40" FIXEDSIZE="true" ALIGN="CENTER" VALIGN="MIDDLE" HREF="https://genealogy.someplace.com/webtrees/tree/familia/media-download?xref=X244&amp;fact_id=6792575f3d13dfbdd756bd341b861621&amp;disposition=inline&amp;mark=0"><IMG SCALE="true" SRC="data/media/media/schoenfeld-liberman.ged/2619_1.jpg" ALT="Acta de Defunción de Caden Behora Levy Assayas - 22 NOV 1951"  /></TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_8" WIDTH="40" HEIGHT="40" FIXEDSIZE="true" ALIGN="CENTER" VALIGN="MIDDLE" HREF="https://genealogy.someplace.com/webtrees/tree/familia/media-download?xref=X291&amp;fact_id=897e93c6b72e91045fc315cf71888654&amp;disposition=inline&amp;mark=0"><IMG SCALE="true" SRC="data/media/media/schoenfeld-liberman.ged/2619_2.jpg" ALT="Lápida de Caden Behora Levy Assayas - 2012"  /></TD><TD CELLPADDING="10"></TD></TR></TABLE>>,
+		pos="893.75,74",
+		width=5.5903];
+	I19 -> F7	[arrowsize=0.3,
+		color="#c0392b",
+		pos="e,1179.9,111.56 1094.9,100.37 1126.5,104.52 1155.3,108.32 1175.7,111.01",
+		style=dotted];
+	I63	[height=0.75,
+		label=<<TABLE COLOR="#606060" BORDER="1" CELLBORDER="0" CELLPADDING="2" CELLSPACING="0" BGCOLOR="#fefefe" TARGET="_blank" HREF="https://genealogy.someplace.com/webtrees/tree/familia/individual/I63/Abraham-Levi"><TR><TD COLSPAN="6" CELLPADDING="2" BGCOLOR="#add8e6" PORT="nam" ></TD></TR><TR><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_9" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ALIGN="LEFT" BALIGN="LEFT"  TARGET="_BLANK" CELLPADDING="4" PORT="dat"><FONT COLOR="#333333" POINT-SIZE="12">Abraham Levi (I63)</FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">Male</FONT>  </TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_10" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_11" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_12" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD CELLPADDING="10"></TD></TR></TABLE>>,
+		pos="267.25,112",
+		width=2.1007];
+	F23	[color="#606060",
+		fillcolor="#ffffee",
+		height=0.69611,
+		href="https://genealogy.someplace.com/webtrees/tree/familia/family/F23/Abraham-Levi-Reyna-Babachi-Assayas-de-Levi",
+		label=<<TABLE border="0" CELLPADDING="5" CELLSPACING="0"><TR><TD><FONT COLOR="#555555" POINT-SIZE="10"> <BR /> (F23)</FONT></TD></TR></TABLE>>,
+		margin=0.01,
+		pos="580.5,74",
+		shape=oval,
+		style=filled,
+		target=_blank,
+		width=0.75];
+	I63 -> F23	[arrowsize=0.3,
+		color="#9b59b6",
+		pos="e,553.33,77.547 342.59,103.33 396.01,97.03 469.72,88.211 534.5,80 539.17,79.408 544.11,78.766 548.94,78.129",
+		style=tapered];
+	I64	[height=1.0278,
+		label=<<TABLE COLOR="#606060" BORDER="1" CELLBORDER="0" CELLPADDING="2" CELLSPACING="0" BGCOLOR="#fefefe" TARGET="_blank" HREF="https://genealogy.someplace.com/webtrees/tree/familia/individual/I64/Reyna-Babachi-Assayas-de-Levi"><TR><TD COLSPAN="6" CELLPADDING="2" BGCOLOR="#ffb6c1" PORT="nam" ></TD></TR><TR><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_13" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ALIGN="LEFT" BALIGN="LEFT"  TARGET="_BLANK" CELLPADDING="4" PORT="dat"><FONT COLOR="#333333" POINT-SIZE="12">Reyna "Babachi" Assayas de Levi (I64)</FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">Female</FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">↑ 1842 (Izmir, Turquia)</FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">↓ 1939 (Distrito Federal, México)</FONT><BR /><FONT COLOR="#555555" POINT-SIZE="10">_  (Panteón del Monte Sinaí, Colonia Huichapan, Delegación Miguel Hidalgo, Distrito Federal, México)</FONT></TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_14" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_15" WIDTH="1" HEIGHT="40" FIXEDSIZE="true"></TD><TD ROWSPAN="2" CELLPADDING="1" PORT="pic_fi_16" WIDTH="40" HEIGHT="40" FIXEDSIZE="true" ALIGN="CENTER" VALIGN="MIDDLE" HREF="https://genealogy.someplace.com/webtrees/tree/familia/media-download?xref=X245&amp;fact_id=e2340ead4ce7cfc70e34799acc084731&amp;disposition=inline&amp;mark=0"><IMG SCALE="true" SRC="data/media/media/schoenfeld-liberman.ged/2619_3.jpg" ALT="Nombres Fila 31 en 2020, Panteón Monte Sinai en Lago Saima 78"  /></TD><TD CELLPADDING="10"></TD></TR></TABLE>>,
+		pos="267.25,37",
+		width=7.4236];
+	I64 -> F23	[arrowsize=0.3,
+		color="#2980b9",
+		pos="e,553.34,70.891 534.24,68.62 539.52,69.247 544.45,69.833 548.97,70.37",
+		style=bold];
+	F23 -> I19	[arrowsize=0.3,
+		color="#1abc9c",
+		pos="e,692.53,74 607.77,74 627.41,74 656.28,74 688.21,74",
+		style=bold];
+}

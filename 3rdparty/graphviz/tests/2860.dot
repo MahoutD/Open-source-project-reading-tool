@@ -1,0 +1,6 @@
+graph {
+  subgraph {
+    graph [label=foo];
+    1 -- 2;
+  }
+}

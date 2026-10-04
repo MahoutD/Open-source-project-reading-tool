@@ -1,0 +1,6 @@
+// based on https://gitlab.com/graphviz/graphviz/-/work_items/2756
+
+digraph {
+  {rank=same; 300; 000; 0} -> 000 
+  300 -> 000  [label=XYZ]
+}

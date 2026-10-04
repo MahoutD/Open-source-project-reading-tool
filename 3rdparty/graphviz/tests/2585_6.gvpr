@@ -1,0 +1,5 @@
+BEGIN {
+  void f1(void x) {}
+
+  f1();
+}

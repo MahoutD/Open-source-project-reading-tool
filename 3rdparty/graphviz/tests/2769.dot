@@ -1,0 +1,11 @@
+graph {
+graph [T=m  st=l,
+ut=d  p=38 packmode=array_ s=s];e [fe=l,fy=t ph=2
+]; {ph [r="#e"l=<<B></>>le=f]; {ph [nk=se][c="2"]; } } subgraph cluster_b2 {ph []; {ph [nk=se][c="f"l=<<>b>,n="0f"l=<<>>in="2"]; } }
+ cluster_b2 {ph [];
+ ph [rank=same];
+b22 [col="#ef",
+l=<<>b22</FONT>>rgin="0.",
+ el=<<FONONT>>,
+ n="062"]  }
+}

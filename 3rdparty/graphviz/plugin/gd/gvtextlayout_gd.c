@@ -1,0 +1,184 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+#include "config.h"
+#include "gd_psfontResolve.h"
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <gvc/gvplugin_textlayout.h>
+#include <gd.h>
+#include <common/const.h>
+#include <util/agxbuf.h>
+#include <util/strcasecmp.h>
+#include <util/strview.h>
+
+#ifdef HAVE_GD_FREETYPE
+
+/* fontsize at which text is omitted entirely */
+#define FONTSIZE_MUCH_TOO_SMALL 0.15
+/* fontsize at which text is rendered by a simple line */
+#define FONTSIZE_TOO_SMALL 1.5
+
+#ifndef HAVE_GD_FONTCONFIG
+/* gd_alternate_fontlist;
+ * Sometimes fonts are stored under a different name,
+ * especially on Windows. Without fontconfig, we provide
+ * here some rudimentary name mapping.
+ */
+char *gd_alternate_fontlist(const char *font) {
+    char *p;
+
+    /* fontbuf to contain font without style descriptions like -Roman or -Italic */
+    strview_t fontlist = strview(font, '\0');
+    if ((p = strchr(font, '-')) || (p = strchr(font, '_')))
+	fontlist.size = (size_t)(p - font);
+
+    if (strcasecmp(font, "times-bold") == 0
+	|| strview_case_str_eq(fontlist, "timesbd")
+	|| strview_case_str_eq(fontlist, "timesb"))
+	fontlist = strview("timesbd;Timesbd;TIMESBD;timesb;Timesb;TIMESB", '\0');
+
+    else if (strcasecmp(font, "times-italic") == 0
+	     || strview_case_str_eq(fontlist, "timesi"))
+	fontlist = strview("timesi;Timesi;TIMESI", '\0');
+
+    else if (strcasecmp(font, "timesnewroman") == 0
+	     || strcasecmp(font, "timesnew") == 0
+	     || strcasecmp(font, "timesroman") == 0
+	     || strview_case_str_eq(fontlist, "times"))
+	fontlist = strview("times;Times;TIMES", '\0');
+
+    else if (strcasecmp(font, "arial-bold") == 0
+	     || strview_case_str_eq(fontlist, "arialb"))
+	fontlist = strview("arialb;Arialb;ARIALB", '\0');
+
+    else if (strcasecmp(font, "arial-italic") == 0
+	     || strview_case_str_eq(fontlist, "ariali"))
+	fontlist = strview("ariali;Ariali;ARIALI", '\0');
+
+    else if (strview_case_str_eq(fontlist, "helvetica"))
+	fontlist = strview("helvetica;Helvetica;HELVETICA;arial;Arial;ARIAL", '\0');
+
+    else if (strview_case_str_eq(fontlist, "arial"))
+	fontlist = strview("arial;Arial;ARIAL", '\0');
+
+    else if (strview_case_str_eq(fontlist, "courier"))
+	fontlist = strview("courier;Courier;COURIER;cour", '\0');
+
+    return strview_str(fontlist);
+}
+#endif				/* HAVE_GD_FONTCONFIG */
+
+/// construct alias for postscript fontname
+char* gd_psfontResolve (PostscriptAlias* pa)
+{
+    agxbuf buf = {0};
+    agxbput(&buf, pa->family);
+
+    const char *separator = " ";
+    const char *const attributes[] = {pa->weight, pa->stretch, pa->style};
+    for (size_t i = 0; i < sizeof(attributes) / sizeof(attributes[0]); ++i) {
+        const char *const a = attributes[i];
+        if (a != NULL) {
+            agxbprint(&buf, "%s%s", separator, a);
+            separator = ", ";
+        }
+    }
+   
+    return agxbdisown(&buf);
+}
+
+static bool gd_textlayout(textspan_t * span, char **fontpath)
+{
+    char *fontlist;
+    int brect[8];
+
+    char *const fontname = span->font->name;
+    double fontsize = span->font->size;
+
+    gdFTStringExtra strex = {
+      .flags = gdFTEX_RETURNFONTPATHNAME | gdFTEX_RESOLUTION,
+      .hdpi = POINTS_PER_INCH,
+      .vdpi = POINTS_PER_INCH
+    };
+
+    if (strchr(fontname, '/'))
+	strex.flags |= gdFTEX_FONTPATHNAME;
+    else
+	strex.flags |= gdFTEX_FONTCONFIG;
+
+    span->size = (pointf){0};
+    span->yoffset_layout = 0.0;
+
+    span->layout = NULL;
+    span->free_layout = NULL;
+
+    span->yoffset_centerline = 0.05 * fontsize;
+
+    if (fontsize <= FONTSIZE_MUCH_TOO_SMALL) {
+        return true; /* OK, but ignore text entirely */
+    } else if (fontsize <= FONTSIZE_TOO_SMALL) {
+        /* draw line in place of text */
+        /* fake a finite fontsize so that line length is calculated */
+        fontsize = FONTSIZE_TOO_SMALL;
+    }
+    bool fontlist_needs_free = false;
+#ifdef HAVE_GD_FONTCONFIG
+    gdFTUseFontConfig(1);  /* tell gd that we really want to use fontconfig, 'cos it s not the default */
+    PostscriptAlias *const pA = span->font->postscript_alias;
+    if (pA) {
+        fontlist = gd_psfontResolve (pA);
+        fontlist_needs_free = true;
+    } else
+        fontlist = fontname;
+#else
+    fontlist = gd_alternate_fontlist(fontname);
+    fontlist_needs_free = true;
+#endif
+
+    // call gdImageStringFT with null *im to get brect and to set font cache
+    char *const err = gdImageStringFTEx(NULL, brect, -1, fontlist,
+    			fontsize, 0, 0, 0, span->str, &strex);
+    if (fontlist_needs_free) {
+        free(fontlist);
+    }
+
+    if (err) {
+        agerrorf("%s\n", err);
+        return false; /* indicate error */
+    }
+
+    if (fontpath)
+        *fontpath = strex.fontpath;
+    else
+        free (strex.fontpath); /* strup'ed in libgd */
+
+    if (span->str && span->str[0]) {
+        /* can't use brect on some archtectures if strlen 0 */
+        span->size.x = brect[4] - brect[0];
+        // LINESPACING specifies how much extra space to leave between lines
+        span->size.y = fontsize * LINESPACING;
+    }
+    return true;
+}
+
+static gvtextlayout_engine_t gd_textlayout_engine = {
+    gd_textlayout,
+};
+#endif
+
+gvplugin_installed_t gvtextlayout_gd_types[] = {
+#ifdef HAVE_GD_FREETYPE
+    {0, "textlayout", 2, &gd_textlayout_engine, NULL},
+#endif
+    {0, NULL, 0, NULL, NULL}
+};

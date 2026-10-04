@@ -1,0 +1,656 @@
+/**
+ * @file
+ * @brief <a href=https://en.wikipedia.org/wiki/GXL>GXL</a>-DOT convert subroutines
+ */
+
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+#include "config.h"
+
+#include    <assert.h>
+#include    "convert.h"
+#include    <stdbool.h>
+#include    <stdio.h>
+#include    <util/agxbuf.h>
+#include    <util/alloc.h>
+#include    <util/exit.h>
+#include    <util/gv_ctype.h>
+#include    <util/list.h>
+#include    <util/startswith.h>
+#include    <util/streq.h>
+#include    <util/unreachable.h>
+#ifdef HAVE_EXPAT
+#include    <expat.h>
+#include    <limits.h>
+#include    <stdlib.h>
+
+#ifndef XML_STATUS_ERROR
+#define XML_STATUS_ERROR 0
+#endif
+
+#define NAMEBUF		100
+
+#define GXL_ATTR	"_gxl_"
+#define GXL_ID      "_gxl_id"
+#define GXL_ROLE	"_gxl_role"
+#define GXL_HYPER	"_gxl_hypergraph"
+#define GXL_FROM    "_gxl_fromorder"
+#define GXL_TO      "_gxl_toorder"
+#define GXL_TYPE    "_gxl_type"
+#define GXL_COMP    "_gxl_composite_"
+#define GXL_LOC     "_gxl_locator_"
+
+typedef enum {
+  TAG_NONE,
+  TAG_GRAPH,
+  TAG_NODE,
+  TAG_EDGE,
+  TAG_HTML_LIKE_STRING,
+} attr_t;
+
+typedef struct {
+    agxbuf xml_attr_name;
+    agxbuf xml_attr_value;
+    agxbuf composite_buffer;
+    bool listen;
+    attr_t closedElementType;
+    attr_t globalAttrType;
+    bool compositeReadState;
+    bool edgeinverted;
+    Dt_t *nameMap;
+} userdata_t;
+
+static Agraph_t *root;		/* root graph */
+static attr_t Current_class;	/* Current element type */
+static Agraph_t *G;		/* Current graph */
+static Agnode_t *N;		/* Set if Current_class == TAG_NODE */
+static Agedge_t *E;		/* Set if Current_class == TAG_EDGE */
+
+static LIST(Agraph_t *) Gstack;
+
+typedef struct {
+    Dtlink_t link;
+    char *name;
+    char *unique_name;
+} namev_t;
+
+static void *make_nitem(void *p, Dtdisc_t *disc){
+    (void)disc;
+    namev_t *objp = p;
+
+    namev_t *np = malloc(sizeof(namev_t));
+    if (np == NULL)
+	return NULL;
+    np->name = objp->name;
+    np->unique_name = 0;
+    return np;
+}
+
+static void free_nitem(void *name) {
+    namev_t *np = name;
+    free(np->unique_name);
+    free(np);
+}
+
+static Dtdisc_t nameDisc = {
+    .key = offsetof(namev_t, name),
+    .size = -1,
+    .link = offsetof(namev_t, link),
+    .makef = make_nitem,
+    .freef = free_nitem,
+};
+
+static userdata_t genUserdata(void) {
+  userdata_t user = {0};
+  user.listen = false;
+  user.closedElementType = TAG_NONE;
+  user.globalAttrType = TAG_NONE;
+  user.compositeReadState = false;
+  user.edgeinverted = false;
+  user.nameMap = dtopen(&nameDisc, Dtoset);
+  return user;
+}
+
+static void freeUserdata(userdata_t ud) {
+  dtclose(ud.nameMap);
+  agxbfree(&ud.xml_attr_name);
+  agxbfree(&ud.xml_attr_value);
+  agxbfree(&ud.composite_buffer);
+}
+
+static void addToMap(Dt_t *map, char *name, const char *uniqueName) {
+    namev_t obj;
+    namev_t *objp;
+
+    obj.name = name;
+    objp = dtinsert(map, &obj);
+    assert(objp->unique_name == 0);
+    objp->unique_name = gv_strdup(uniqueName);
+}
+
+static char *mapLookup(Dt_t *nm, const char *name) {
+    namev_t *objp = dtmatch(nm, name);
+    if (objp)
+	return objp->unique_name;
+    else
+	return 0;
+}
+
+static int isAnonGraph(const char *name)
+{
+    if (*name++ != '%')
+	return 0;
+    while (gv_isdigit(*name))
+	name++;			/* skip over digits */
+    return (*name == '\0');
+}
+
+static void push_subg(Agraph_t * g)
+{
+  // insert the new graph
+  LIST_PUSH_BACK(&Gstack, g);
+
+  // save the root if this is the first graph
+  if (LIST_SIZE(&Gstack) == 1) {
+    root = g;
+  }
+
+  // update the top graph
+  G = g;
+}
+
+static Agraph_t *pop_subg(void)
+{
+  // is the stack empty?
+  if (LIST_IS_EMPTY(&Gstack)) {
+    fprintf(stderr, "gxl2gv: Gstack underflow in graph parser\n");
+    graphviz_exit(EXIT_FAILURE);
+  }
+
+  // pop the top graph
+  Agraph_t *g = LIST_POP_BACK(&Gstack);
+
+  // update the top graph
+  if (!LIST_IS_EMPTY(&Gstack))
+    G = *LIST_BACK(&Gstack);
+
+  return g;
+}
+
+static Agnode_t *bind_node(const char *name)
+{
+    N = agnode(G, (char *) name, 1);
+    return N;
+}
+
+static Agedge_t *bind_edge(const char *tail, const char *head)
+{
+    Agnode_t *tailNode, *headNode;
+    char *key = 0;
+
+    tailNode = agnode(G, (char *) tail, 1);
+    headNode = agnode(G, (char *) head, 1);
+    E = agedge(G, tailNode, headNode, key, 1);
+    return E;
+}
+
+static int get_xml_attr(char *attrname, const char **atts)
+{
+    int count = 0;
+    while (atts[count] != NULL) {
+	if (streq(attrname, atts[count])) {
+	    return count + 1;
+	}
+	count += 2;
+    }
+    return -1;
+}
+
+static void setName(Dt_t * names, Agobj_t * n, char *value)
+{
+    Agsym_t *const ap = agattr_text(root, AGTYPE(n), GXL_ID, "");
+    agxset(n, ap, agnameof(n));
+    char *const oldName = agxget(n, ap); // set/get gives us new copy
+    addToMap(names, oldName, value);
+    agrename(n, value);
+}
+
+static char *defval = "";
+
+static void
+setNodeAttr(Agnode_t * np, char *name, char *value, userdata_t * ud,
+  bool is_html)
+{
+    if (streq(name, "name")) {
+	setName(ud->nameMap, &np->base, value);
+    } else {
+	Agsym_t *ap = agattr_text(root, AGNODE, name, 0);
+	if (!ap)
+	    ap = agattr_text(root, AGNODE, name, defval);
+	if (is_html) {
+	    agxset_html(np, ap, value);
+	} else {
+	    agxset(np, ap, value);
+	}
+    }
+}
+
+#define NODELBL "node:"
+#define NLBLLEN (sizeof(NODELBL)-1)
+#define EDGELBL "edge:"
+#define ELBLLEN (sizeof(EDGELBL)-1)
+
+/* setGlobalNodeAttr:
+ * Set global node attribute.
+ * The names must always begin with "node:".
+ */
+static void
+setGlobalNodeAttr(Agraph_t * g, char *name, char *value)
+{
+    if (!startswith(name, NODELBL))
+	fprintf(stderr,
+		"Warning: global node attribute %s in graph %s does not begin with the prefix %s\n",
+		name, agnameof(g), NODELBL);
+    else
+	name += NLBLLEN;
+    if ((g != root) && !agattr_text(root, AGNODE, name, 0))
+	agattr_text(root, AGNODE, name, defval);
+    agattr_text(G, AGNODE, name, value);
+}
+
+static void setEdgeAttr(Agedge_t *ep, char *name, const char *value,
+                        userdata_t *ud, bool is_html) {
+    Agsym_t *ap;
+    char *attrname;
+
+    if (streq(name, "headport")) {
+	if (ud->edgeinverted)
+	    attrname = "tailport";
+	else
+	    attrname = "headport";
+	ap = agattr_text(root, AGEDGE, attrname, 0);
+	if (!ap)
+	    ap = agattr_text(root, AGEDGE, attrname, defval);
+    } else if (streq(name, "tailport")) {
+	if (ud->edgeinverted)
+	    attrname = "headport";
+	else
+	    attrname = "tailport";
+	ap = agattr_text(root, AGEDGE, attrname, 0);
+	if (!ap)
+	    ap = agattr_text(root, AGEDGE, attrname, defval);
+    } else {
+	ap = agattr_text(root, AGEDGE, name, 0);
+	if (!ap)
+	    ap = agattr_text(root, AGEDGE, name, defval);
+    }
+
+    if (is_html) {
+	agxset_html(ep, ap, value);
+    } else {
+	agxset(ep, ap, value);
+    }
+}
+
+/* setGlobalEdgeAttr:
+ * Set global edge attribute.
+ * The names always begin with "edge:".
+ */
+static void
+setGlobalEdgeAttr(Agraph_t * g, char *name, char *value)
+{
+    if (!startswith(name, EDGELBL))
+	fprintf(stderr,
+		"Warning: global edge attribute %s in graph %s does not begin with the prefix %s\n",
+		name, agnameof(g), EDGELBL);
+    else
+	name += ELBLLEN;
+    if ((g != root) && !agattr_text(root, AGEDGE, name, 0))
+	agattr_text(root, AGEDGE, name, defval);
+    agattr_text(g, AGEDGE, name, value);
+}
+
+static void
+setGraphAttr(Agraph_t * g, char *name, char *value, userdata_t * ud)
+{
+    Agsym_t *ap;
+
+    if ((g == root) && streq(name, "strict") && streq(value, "true")) {
+	g->desc.strict = true;
+    } else if (streq(name, "name"))
+	setName(ud->nameMap, &g->base, value);
+    else {
+	ap = agattr_text(root, AGRAPH, name, 0);
+	if (ap)
+	    agxset(g, ap, value);
+	else if (g == root)
+	    agattr_text(root, AGRAPH, name, value);
+	else {
+	    ap = agattr_text(root, AGRAPH, name, defval);
+	    agxset(g, ap, value);
+	}
+    }
+}
+
+static void setAttr(char *name, char *value, userdata_t * ud, bool is_html)
+{
+    switch (Current_class) {
+    case TAG_GRAPH:
+	setGraphAttr(G, name, value, ud);
+	break;
+    case TAG_NODE:
+	setNodeAttr(N, name, value, ud, is_html);
+	break;
+    case TAG_EDGE:
+	setEdgeAttr(E, name, value, ud, is_html);
+	break;
+    default:
+	break;
+    }
+}
+
+/*------------- expat handlers ----------------------------------*/
+
+static void
+startElementHandler(void *userData, const char *name, const char **atts)
+{
+    int pos;
+    userdata_t *ud = userData;
+    Agraph_t *g = NULL;
+
+    if (streq(name, "gxl")) {
+	/* do nothing */
+    } else if (streq(name, "graph")) {
+	const char *edgeMode = "";
+	char buf[NAMEBUF];	/* holds % + number */
+
+	Current_class = TAG_GRAPH;
+	if (ud->closedElementType == TAG_GRAPH) {
+	    fprintf(stderr,
+		    "Warning: Node contains more than one graph.\n");
+	}
+	pos = get_xml_attr("id", atts);
+	if (pos <= 0) {
+	    fprintf(stderr, "Error: Graph has no ID attribute.\n");
+	    graphviz_exit(EXIT_FAILURE);
+	}
+	const char *id = atts[pos];
+	pos = get_xml_attr("edgemode", atts);
+	if (pos > 0) {
+	    edgeMode = atts[pos];
+	}
+
+	if (LIST_IS_EMPTY(&Gstack)) {
+	    if (streq(edgeMode, "directed")) {
+		g = agopen((char *) id, Agdirected, &AgDefaultDisc);
+	    } else if (streq(edgeMode, "undirected")) {
+		g = agopen((char *) id, Agundirected, &AgDefaultDisc);
+	    } else {
+		fprintf(stderr,
+			"Warning: graph has no edgemode attribute");
+		fprintf(stderr, " - assume directed\n");
+		g = agopen((char *) id, Agdirected, &AgDefaultDisc);
+	    }
+	    push_subg(g);
+	} else {
+	    Agraph_t *subg;
+	    if (isAnonGraph(id)) {
+		static int anon_id = 1;
+		snprintf(buf, sizeof(buf), "%%%d", anon_id++);
+		id = buf;
+	    }
+	    subg = agsubg(G, (char *) id, 1);
+	    push_subg(subg);
+	}
+
+	pos = get_xml_attr("role", atts);
+	if (pos > 0) {
+	    setGraphAttr(G, GXL_ROLE, (char *) atts[pos], ud);
+	}
+
+	pos = get_xml_attr("hypergraph", atts);
+	if (pos > 0) {
+	    setGraphAttr(G, GXL_HYPER, (char *) atts[pos], ud);
+	}
+
+    } else if (streq(name, "node")) {
+	Current_class = TAG_NODE;
+	pos = get_xml_attr("id", atts);
+	if (pos > 0) {
+	    const char *attrname;
+	    attrname = atts[pos];
+
+	    if (attrname != NULL && !streq(attrname, "")) {
+		bind_node(attrname);
+	    }
+	}
+
+    } else if (streq(name, "edge")) {
+	const char *head = "", *tail = "";
+	char *tname;
+	Agnode_t *t;
+
+	Current_class = TAG_EDGE;
+	pos = get_xml_attr("from", atts);
+	if (pos > 0)
+	    tail = atts[pos];
+	pos = get_xml_attr("to", atts);
+	if (pos > 0)
+	    head = atts[pos];
+
+	tname = mapLookup(ud->nameMap, tail);
+	if (tname)
+	    tail = tname;
+
+	tname = mapLookup(ud->nameMap, head);
+	if (tname)
+	    head = tname;
+
+	bind_edge(tail, head);
+
+	t = AGTAIL(E);
+	tname = agnameof(t);
+
+	if (streq(tname, tail)) {
+	    ud->edgeinverted = false;
+	} else if (streq(tname, head)) {
+	    ud->edgeinverted = true;
+	}
+
+	pos = get_xml_attr("fromorder", atts);
+	if (pos > 0) {
+	    setEdgeAttr(E, GXL_FROM, atts[pos], ud, false);
+	}
+
+	pos = get_xml_attr("toorder", atts);
+	if (pos > 0) {
+	    setEdgeAttr(E, GXL_TO, atts[pos], ud, false);
+	}
+
+	pos = get_xml_attr("id", atts);
+	if (pos > 0) {
+	    setEdgeAttr(E, GXL_ID, atts[pos], ud, false);
+	}
+    } else if (streq(name, "attr")) {
+	const char *attrname = atts[get_xml_attr("name", atts)];
+
+	agxbput(&ud->xml_attr_name, attrname);
+	pos = get_xml_attr("kind", atts);
+
+	if (pos > 0) {
+	    if (streq("node", atts[pos]))
+		ud->globalAttrType = TAG_NODE;
+	    else if (streq("edge", atts[pos]))
+		ud->globalAttrType = TAG_EDGE;
+	    else if (streq("graph", atts[pos]))
+		ud->globalAttrType = TAG_GRAPH;
+	    else if (streq("HTML-like string", atts[pos]))
+		ud->globalAttrType = TAG_HTML_LIKE_STRING;
+	} else {
+	    ud->globalAttrType = TAG_NONE;
+	}
+
+    } else if (streq(name, "string")
+	       || streq(name, "bool")
+	       || streq(name, "int") || streq(name, "float")) {
+
+	ud->listen = true;
+	if (ud->compositeReadState) {
+	    agxbprint(&ud->composite_buffer, "<%s>", name);
+	}
+    } else if (streq(name, "rel") || streq(name, "relend")) {
+	fprintf(stderr, "%s element is ignored by DOT\n", name);
+    } else if (streq(name, "type")) {
+	pos = get_xml_attr("xlink:href", atts);
+	if (pos > 0) {
+	    setAttr(GXL_TYPE, (char *) atts[pos], ud, false);
+	}
+    } else if (streq(name, "locator")) {
+	pos = get_xml_attr("xlink:href", atts);
+	if (pos > 0) {
+	    const char *href = atts[pos];
+	    agxbprint(&ud->xml_attr_value, "%s%s", GXL_LOC, href);
+	}
+    } else if (streq(name, "seq")
+	       || streq(name, "set")
+	       || streq(name, "bag")
+	       || streq(name, "tup") || streq(name, "enum")) {
+
+	ud->compositeReadState = true;
+	agxbprint(&ud->composite_buffer, "<%s>", name);
+    } else {
+	/* must be some extension */
+	fprintf(stderr,
+		"Unknown node %s; DOT does not support extensions.\n",
+		name);
+    }
+}
+
+static void endElementHandler(void *userData, const char *name)
+{
+    userdata_t *ud = userData;
+
+    if (streq(name, "graph")) {
+	pop_subg();
+	ud->closedElementType = TAG_GRAPH;
+    } else if (streq(name, "node")) {
+	Current_class = TAG_GRAPH;
+	N = 0;
+	ud->closedElementType = TAG_NODE;
+    } else if (streq(name, "edge")) {
+	Current_class = TAG_GRAPH;
+	E = 0;
+	ud->closedElementType = TAG_EDGE;
+	ud->edgeinverted = false;
+    } else if (streq(name, "attr")) {
+	agxbuf new_name = {0};
+	char *value;
+
+	ud->closedElementType = TAG_NONE;
+	if (ud->compositeReadState) {
+	    agxbprint(&new_name, "%s%s", GXL_COMP, agxbuse(&ud->xml_attr_name));
+	    value = agxbuse(&ud->composite_buffer);
+	    agxbclear(&ud->xml_attr_value);
+	    ud->compositeReadState = false;
+	} else {
+	    agxbput(&new_name, agxbuse(&ud->xml_attr_name));
+	    value = agxbuse(&ud->xml_attr_value);
+	}
+
+	switch (ud->globalAttrType) {
+	case TAG_NONE:
+	    setAttr(agxbuse(&new_name), value, ud, false);
+	    break;
+	case TAG_NODE:
+	    setGlobalNodeAttr(G, agxbuse(&new_name), value);
+	    break;
+	case TAG_EDGE:
+	    setGlobalEdgeAttr(G, agxbuse(&new_name), value);
+	    break;
+	case TAG_GRAPH:
+	    setGraphAttr(G, agxbuse(&new_name), value, ud);
+	    break;
+	case TAG_HTML_LIKE_STRING:
+	    setAttr(agxbuse(&new_name), value, ud, true);
+	    break;
+	default:
+	    UNREACHABLE();
+	}
+	agxbfree(&new_name);
+	ud->globalAttrType = TAG_NONE;
+    } else if (streq(name, "string")
+	       || streq(name, "bool")
+	       || streq(name, "int") || streq(name, "float")) {
+	ud->listen = false;
+	if (ud->compositeReadState) {
+	    agxbprint(&ud->composite_buffer, "</%s>", name);
+	}
+    } else if (streq(name, "seq")
+	       || streq(name, "set")
+	       || streq(name, "bag")
+	       || streq(name, "tup") || streq(name, "enum")) {
+	agxbprint(&ud->composite_buffer, "</%s>", name);
+    }
+}
+
+static void characterDataHandler(void *userData, const char *s, int length)
+{
+    userdata_t *ud = userData;
+
+    assert(length >= 0 && "Expat returned negative length data");
+    size_t len = (size_t)length;
+
+    if (!ud->listen)
+	return;
+
+    if (ud->compositeReadState) {
+	agxbput_n(&ud->composite_buffer, s, len);
+	return;
+    }
+
+    agxbput_n(&ud->xml_attr_value, s, len);
+}
+
+Agraph_t *gxl_to_gv(FILE * gxlFile)
+{
+    char buf[BUFSIZ];
+    int done;
+    userdata_t udata = genUserdata();
+    XML_Parser parser = XML_ParserCreate(NULL);
+
+    XML_SetUserData(parser, &udata);
+    XML_SetElementHandler(parser, startElementHandler, endElementHandler);
+    XML_SetCharacterDataHandler(parser, characterDataHandler);
+
+    Current_class = TAG_GRAPH;
+    root = 0;
+    do {
+	size_t len = fread(buf, 1, sizeof(buf), gxlFile);
+	if (len == 0)
+	    break;
+	done = len < sizeof(buf);
+	assert(len <= INT_MAX && "too large data for Expat API");
+	if (XML_Parse(parser, buf, (int)len, done) == XML_STATUS_ERROR) {
+	    fprintf(stderr,
+		    "%s at line %lu\n",
+		    XML_ErrorString(XML_GetErrorCode(parser)),
+		    XML_GetCurrentLineNumber(parser));
+	    graphviz_exit(1);
+	}
+    } while (!done);
+    XML_ParserFree(parser);
+    freeUserdata(udata);
+    LIST_FREE(&Gstack);
+
+    return root;
+}
+
+#endif

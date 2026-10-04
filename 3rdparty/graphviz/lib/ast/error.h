@@ -1,0 +1,67 @@
+/*************************************************************************
+ * Copyright (c) 2011 AT&T Intellectual Property
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
+ *
+ * Contributors: Details at https://graphviz.org
+ *************************************************************************/
+
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * standalone mini error interface
+ */
+
+#include <errno.h>
+#include <stdarg.h>
+
+typedef struct Error_info_s {
+  int errors;
+  int indent;
+  int line;
+  int warnings;
+  int trace;
+  char *file;
+  char *id;
+} Error_info_t;
+
+#define ERROR_INFO 0            /* info message -- no err_id    */
+#define ERROR_WARNING 1         /* warning message              */
+#define ERROR_ERROR 2           /* error message -- no err_exit */
+#define ERROR_FATAL 3           /* error message with err_exit  */
+#define ERROR_PANIC ERROR_LEVEL /* panic message with err_exit  */
+
+#define ERROR_LEVEL 0x00ff /* level portion of status      */
+#define ERROR_USAGE 0x0800 /* usage message                */
+
+/* support for extra API misuse warnings if available */
+#ifdef __GNUC__
+#define PRINTF_LIKE(index, first) __attribute__((format(printf, index, first)))
+#else
+#define PRINTF_LIKE(index, first) /* nothing */
+#endif
+
+extern Error_info_t error_info;
+
+void setTraceLevel(int);
+void setErrorLine(int);
+void setErrorFileLine(char *, int);
+void setErrorId(char *);
+void setErrorErrors(int);
+int getErrorErrors(void);
+
+void error(int, const char *, ...) PRINTF_LIKE(2, 3);
+void errorf(const char *, void *, int, const char *, ...) PRINTF_LIKE(4, 5);
+void errorv(const char *, int, const char *, va_list);
+
+#undef PRINTF_LIKE
+
+#ifdef __cplusplus
+}
+#endif

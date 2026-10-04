@@ -1,0 +1,14 @@
+// based on https://gitlab.com/graphviz/graphviz/-/work_items/2765
+digraph {
+  concentrate=true;
+  node [shape=record]
+  subgraph cluster{
+    Ho0er0tra0eTo0top [label="|<Target>"]
+  }
+  Ho0erTo0light
+  Ho0er0tra0eTo0top:n -> Ho0er0est:n
+  Ho0er0tra0eTo0top:Target -> Ho0er0est:n
+  Ho0er0tra0eTo0top:n -> Ho0erTo0light:n
+  Ho0er0tra0eTo0top:Target -> Ho0er0est:n
+  Ho0erTo0light -> Ho0er0est
+}
