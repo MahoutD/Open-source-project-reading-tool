@@ -33,6 +33,7 @@ public:
     Q_INVOKABLE QString readFileContent(const QString &relativeOrFullPath);
     Q_INVOKABLE void selectFile(const QString &filePath);
     Q_INVOKABLE void refreshAnalysis();
+    Q_INVOKABLE bool exportReport(const QString &targetFilePath);
 
 signals:
     void isBusyChanged();

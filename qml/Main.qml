@@ -6,89 +6,175 @@ import CodeReader 1.0
 
 ApplicationWindow {
     id: window
-    width: 1380
-    height: 860
-    minimumWidth: 1024
-    minimumHeight: 680
+    width: 1440
+    height: 900
+    minimumWidth: 1080
+    minimumHeight: 700
     visible: true
-    title: "开源代码全景阅读器 (Open-Source Project Reader)"
-    color: "#18181b"
+    title: "CodeInsight Pro - 开源代码架构与依赖全景分析工具"
+    color: "#0f172a" // Slate-900 ultra modern dark
 
     property string currentSelectedFilePath: ""
     property string currentFileExtension: "cpp"
+    property bool isFileGraphActive: true
 
-    // Top Navigation & Actions Bar
+    // Top Command / Navigation Bar
     header: ToolBar {
+        height: 54
         background: Rectangle {
-            color: "#1f1f23"
-            border.color: "#2e2e33"
+            color: "#1e293b" // Slate-800
+            border.color: "#334155"
             border.width: 1
         }
 
         RowLayout {
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
             spacing: 12
 
-            Text {
-                text: "🔍 CodeReader"
-                color: "#60a5fa"
-                font.bold: true
-                font.pixelSize: 16
+            // Brand / Logo
+            RowLayout {
+                spacing: 8
+                Rectangle {
+                    width: 30
+                    height: 30
+                    radius: 6
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#38bdf8" }
+                        GradientStop { position: 1.0; color: "#0284c7" }
+                    }
+                    Text {
+                        anchors.centerIn: parent
+                        text: "⌘"
+                        color: "#ffffff"
+                        font.bold: true
+                        font.pixelSize: 16
+                    }
+                }
+                ColumnLayout {
+                    spacing: 0
+                    Text {
+                        text: "CodeInsight Pro"
+                        color: "#f8fafc"
+                        font.bold: true
+                        font.pixelSize: 14
+                    }
+                    Text {
+                        text: "开源代码全景阅读与拓扑分析系统"
+                        color: "#94a3b8"
+                        font.pixelSize: 10
+                    }
+                }
             }
 
-            Rectangle { width: 1; height: 24; color: "#3f3f46" }
+            Rectangle { width: 1; height: 26; color: "#334155" }
 
-            // URL input & Clone
-            TextField {
-                id: repoInput
+            // URL Input Box with Repo Icon
+            Rectangle {
                 Layout.fillWidth: true
-                placeholderText: "输入 GitHub / Gitee / GitLab 仓库链接 (例如: https://github.com/nlohmann/json.git)"
-                color: "#f4f4f5"
-                placeholderTextColor: "#71717a"
-                background: Rectangle {
-                    color: "#27272a"
-                    radius: 6
-                    border.color: repoInput.activeFocus ? "#3b82f6" : "#3f3f46"
+                Layout.maximumWidth: 540
+                height: 36
+                color: "#0f172a"
+                radius: 6
+                border.color: repoInput.activeFocus ? "#38bdf8" : "#334155"
+                border.width: 1
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 8
+                    spacing: 6
+
+                    Text {
+                        text: "🔗"
+                        color: "#64748b"
+                        font.pixelSize: 12
+                    }
+
+                    TextField {
+                        id: repoInput
+                        Layout.fillWidth: true
+                        placeholderText: "输入 GitHub / Gitee / GitLab 仓库链接 (支持 https://... 或 git@...)"
+                        color: "#f8fafc"
+                        placeholderTextColor: "#64748b"
+                        font.pixelSize: 12
+                        background: Item {}
+                        selectByMouse: true
+                    }
+
+                    Button {
+                        text: projectController.isBusy ? "拉取中..." : "拉取分析"
+                        enabled: !projectController.isBusy && repoInput.text.trim().length > 0
+                        implicitHeight: 28
+                        background: Rectangle {
+                            color: parent.enabled ? (parent.down ? "#0284c7" : "#0284c7") : "#334155"
+                            radius: 4
+                        }
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#ffffff"
+                            font.bold: true
+                            font.pixelSize: 11
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        onClicked: {
+                            appLogger.logInfo("用户操作", "点击拉取仓库: " + repoInput.text.trim());
+                            projectController.cloneAndOpenRepo(repoInput.text);
+                        }
+                    }
                 }
             }
 
+            // Open Local Folder Button
             Button {
-                text: projectController.isBusy ? "拉取中..." : "拉取并阅读"
-                enabled: !projectController.isBusy && repoInput.text.trim().length > 0
+                text: "📂 打开本地代码"
+                implicitHeight: 34
                 background: Rectangle {
-                    color: parent.enabled ? (parent.down ? "#1d4ed8" : "#2563eb") : "#3f3f46"
+                    color: parent.down ? "#334155" : "#1e293b"
+                    border.color: "#475569"
                     radius: 6
                 }
                 contentItem: Text {
                     text: parent.text
-                    color: "#ffffff"
-                    font.bold: true
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                onClicked: projectController.cloneAndOpenRepo(repoInput.text)
-            }
-
-            Button {
-                text: "打开本地文件夹"
-                background: Rectangle {
-                    color: parent.down ? "#27272a" : "#3f3f46"
-                    radius: 6
-                }
-                contentItem: Text {
-                    text: parent.text
-                    color: "#e4e4e7"
+                    color: "#f1f5f9"
+                    font.pixelSize: 12
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
                 onClicked: folderDialog.open()
             }
 
-            Rectangle { width: 1; height: 24; color: "#3f3f46" }
-
+            // Quick Refresh Button
             Button {
-                text: "🌐 连通性测试"
+                text: "🔄 重新分析"
+                implicitHeight: 34
+                enabled: !projectController.isBusy
+                background: Rectangle {
+                    color: parent.down ? "#334155" : "#1e293b"
+                    border.color: "#475569"
+                    radius: 6
+                }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#f1f5f9"
+                    font.pixelSize: 12
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                onClicked: {
+                    appLogger.logInfo("用户操作", "触发重新分析当前工程");
+                    projectController.refreshAnalysis();
+                }
+            }
+
+            Item { Layout.fillWidth: true }
+
+            // Action: Network Test
+            Button {
+                text: "🌐 网络连通性诊断"
+                implicitHeight: 34
                 background: Rectangle {
                     color: parent.down ? "#047857" : "#059669"
                     radius: 6
@@ -97,229 +183,417 @@ ApplicationWindow {
                     text: parent.text
                     color: "#ffffff"
                     font.bold: true
+                    font.pixelSize: 12
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
-                onClicked: netDialog.open()
+                onClicked: {
+                    appLogger.logInfo("用户操作", "打开网络连通性诊断对话框");
+                    netDialog.open();
+                }
+            }
+
+            // Action: Help & About
+            Button {
+                text: "❓ 使用帮助"
+                implicitHeight: 34
+                background: Rectangle {
+                    color: parent.down ? "#334155" : "#1e293b"
+                    border.color: "#475569"
+                    radius: 6
+                }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#cbd5e1"
+                    font.pixelSize: 12
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                onClicked: helpDialog.open()
             }
         }
     }
 
     FolderDialog {
         id: folderDialog
-        title: "选择项目源代码根目录"
+        title: "选择项目源码根目录"
         currentFolder: "file:///" + projectController.currentProjectPath
         onAccepted: {
-            projectController.openLocalFolder(selectedFolder.toString())
+            appLogger.logInfo("用户操作", "选择本地工程目录: " + selectedFolder.toString());
+            projectController.openLocalFolder(selectedFolder.toString());
         }
     }
 
-    // Main workspace split
+    // Main 3-Area Split Layout
     SplitView {
         anchors.fill: parent
         orientation: Qt.Horizontal
 
-        // Left Sidebar: File Tree & Project Summary Switch
+        // ==========================================
+        // LEFT PANE: Project Explorer & Summary
+        // ==========================================
         Rectangle {
-            SplitView.preferredWidth: 320
-            SplitView.minimumWidth: 240
-            SplitView.maximumWidth: 500
-            color: "#18181b"
-            border.color: "#27272a"
+            SplitView.preferredWidth: 340
+            SplitView.minimumWidth: 260
+            SplitView.maximumWidth: 520
+            color: "#0f172a"
+            border.color: "#1e293b"
+            border.width: 1
 
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 0
 
-                // Sidebar tabs
-                TabBar {
-                    id: sideTab
+                // Header with custom styled tabs
+                Rectangle {
                     Layout.fillWidth: true
-                    background: Rectangle { color: "#1f1f23" }
+                    height: 44
+                    color: "#1e293b"
+                    border.color: "#334155"
 
-                    TabButton {
-                        text: "📁 文件关系列表"
-                        contentItem: Text {
-                            text: parent.text
-                            color: parent.checked ? "#60a5fa" : "#a1a1aa"
-                            font.bold: parent.checked
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        background: Rectangle {
-                            color: parent.checked ? "#27272a" : "transparent"
-                        }
-                    }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        spacing: 4
 
-                    TabButton {
-                        text: "📋 全景总结"
-                        contentItem: Text {
-                            text: parent.text
-                            color: parent.checked ? "#60a5fa" : "#a1a1aa"
-                            font.bold: parent.checked
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
+                        Button {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            text: "📁 源码文件 (" + projectController.fileList.length + ")"
+                            background: Rectangle {
+                                color: sideStack.currentIndex === 0 ? "#0f172a" : "transparent"
+                                radius: 4
+                                border.color: sideStack.currentIndex === 0 ? "#38bdf8" : "transparent"
+                                border.width: 1
+                            }
+                            contentItem: Text {
+                                text: parent.text
+                                color: sideStack.currentIndex === 0 ? "#38bdf8" : "#94a3b8"
+                                font.bold: sideStack.currentIndex === 0
+                                font.pixelSize: 12
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            onClicked: sideStack.currentIndex = 0
                         }
-                        background: Rectangle {
-                            color: parent.checked ? "#27272a" : "transparent"
+
+                        Button {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            text: "📋 全景总结报告"
+                            background: Rectangle {
+                                color: sideStack.currentIndex === 1 ? "#0f172a" : "transparent"
+                                radius: 4
+                                border.color: sideStack.currentIndex === 1 ? "#38bdf8" : "transparent"
+                                border.width: 1
+                            }
+                            contentItem: Text {
+                                text: parent.text
+                                color: sideStack.currentIndex === 1 ? "#38bdf8" : "#94a3b8"
+                                font.bold: sideStack.currentIndex === 1
+                                font.pixelSize: 12
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            onClicked: sideStack.currentIndex = 1
                         }
                     }
                 }
 
+                // Search / Filter Input for Files
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 38
+                    color: "#131b2e"
+                    visible: sideStack.currentIndex === 0
+                    border.color: "#1e293b"
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+
+                        Text { text: "🔍"; color: "#64748b"; font.pixelSize: 11 }
+
+                        TextField {
+                            id: fileFilterInput
+                            Layout.fillWidth: true
+                            placeholderText: "快速过滤文件名..."
+                            color: "#f8fafc"
+                            placeholderTextColor: "#64748b"
+                            font.pixelSize: 11
+                            background: Item {}
+                        }
+
+                        Button {
+                            text: "×"
+                            visible: fileFilterInput.text.length > 0
+                            implicitWidth: 20
+                            implicitHeight: 20
+                            background: Item {}
+                            contentItem: Text { text: "×"; color: "#94a3b8"; font.bold: true; horizontalAlignment: Text.AlignHCenter }
+                            onClicked: fileFilterInput.text = ""
+                        }
+                    }
+                }
+
+                // Stack Container
                 StackLayout {
+                    id: sideStack
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    currentIndex: sideTab.currentIndex
+                    currentIndex: 0
 
-                    // Item 0: File List
-                    Rectangle {
-                        color: "#18181b"
+                    // View 0: Source File List
+                    ListView {
+                        id: fileListView
+                        clip: true
+                        model: {
+                            var q = fileFilterInput.text.toLowerCase().trim()
+                            if (q.length === 0) return projectController.fileList
+                            var filtered = []
+                            for (var i = 0; i < projectController.fileList.length; ++i) {
+                                var item = projectController.fileList[i]
+                                if (item.name.toLowerCase().indexOf(q) !== -1 || item.path.toLowerCase().indexOf(q) !== -1) {
+                                    filtered.push(item)
+                                }
+                            }
+                            return filtered
+                        }
 
-                        ListView {
-                            id: fileListView
-                            anchors.fill: parent
-                            clip: true
-                            model: projectController.fileList
+                        delegate: Rectangle {
+                            width: fileListView.width
+                            height: 48
+                            color: currentSelectedFilePath === modelData.path ? "#1e293b" : (maItem.containsMouse ? "#172033" : "transparent")
+                            border.color: currentSelectedFilePath === modelData.path ? "#38bdf8" : "transparent"
+                            border.width: 1
 
-                            delegate: Rectangle {
-                                width: fileListView.width
-                                height: 42
-                                color: currentSelectedFilePath === modelData.path ? "#27272a" : (maItem.containsMouse ? "#202023" : "transparent")
-                                border.color: currentSelectedFilePath === modelData.path ? "#3b82f6" : "transparent"
-                                border.width: 1
+                            MouseArea {
+                                id: maItem
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    currentSelectedFilePath = modelData.path
+                                    currentFileExtension = modelData.type
+                                    codeEditor.text = projectController.readFileContent(modelData.path)
+                                    editorBridge.fileExtension = modelData.type
+                                    projectController.selectFile(modelData.path)
+                                    topoGraphView.selectNode(modelData.path)
+                                }
+                            }
 
-                                MouseArea {
-                                    id: maItem
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: {
-                                        currentSelectedFilePath = modelData.path
-                                        currentFileExtension = modelData.type
-                                        codeEditor.text = projectController.readFileContent(modelData.path)
-                                        editorBridge.fileExtension = modelData.type
-                                        projectController.selectFile(modelData.path)
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 10
+                                spacing: 10
+
+                                // Language tag
+                                Rectangle {
+                                    width: 32
+                                    height: 22
+                                    radius: 4
+                                    color: {
+                                        var ext = modelData.type
+                                        if (ext === "h" || ext === "hpp") return "#0369a1"
+                                        if (ext === "cpp" || ext === "c") return "#059669"
+                                        if (ext === "qml") return "#7c3aed"
+                                        if (ext === "py") return "#d97706"
+                                        return "#475569"
+                                    }
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData.type.toUpperCase()
+                                        color: "#ffffff"
+                                        font.pixelSize: 9
+                                        font.bold: true
                                     }
                                 }
 
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.leftMargin: 12
-                                    anchors.rightMargin: 12
-                                    spacing: 8
-
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
                                     Text {
-                                        text: {
-                                            var ext = modelData.type
-                                            if (ext === "h" || ext === "hpp") return "📄 [H]"
-                                            if (ext === "cpp" || ext === "c") return "⚙️ [C++]"
-                                            if (ext === "qml") return "🎨 [QML]"
-                                            if (ext === "py") return "🐍 [Py]"
-                                            return "📝 [Txt]"
-                                        }
-                                        color: "#a1a1aa"
-                                        font.pixelSize: 11
-                                    }
-
-                                    ColumnLayout {
+                                        text: modelData.name
+                                        color: currentSelectedFilePath === modelData.path ? "#38bdf8" : "#f1f5f9"
+                                        font.bold: currentSelectedFilePath === modelData.path
+                                        font.pixelSize: 12
+                                        elide: Text.ElideMiddle
                                         Layout.fillWidth: true
-                                        spacing: 2
-                                        Text {
-                                            text: modelData.name
-                                            color: "#f4f4f5"
-                                            font.bold: true
-                                            font.pixelSize: 13
-                                            elide: Text.ElideMiddle
-                                            Layout.fillWidth: true
-                                        }
-                                        Text {
-                                            text: modelData.path + "  (" + modelData.lines + "行, " + modelData.dependenciesCount + "个依赖)"
-                                            color: "#71717a"
-                                            font.pixelSize: 10
-                                            elide: Text.ElideMiddle
-                                            Layout.fillWidth: true
+                                    }
+                                    Text {
+                                        text: modelData.path + " • " + modelData.lines + " 行 • 依赖 " + modelData.dependenciesCount
+                                        color: "#64748b"
+                                        font.pixelSize: 10
+                                        elide: Text.ElideMiddle
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+
+                        ScrollBar.vertical: ScrollBar { active: true }
+                    }
+
+                    // View 1: Summary Report with Export Button
+                    ColumnLayout {
+                        spacing: 0
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 38
+                            color: "#1e293b"
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: 6
+                                Text {
+                                    text: "架构全景分析总结"
+                                    color: "#f8fafc"
+                                    font.bold: true
+                                    font.pixelSize: 12
+                                }
+                                Item { Layout.fillWidth: true }
+                                Button {
+                                    text: "💾 导出报告"
+                                    implicitHeight: 26
+                                    background: Rectangle {
+                                        color: "#0284c7"
+                                        radius: 4
+                                    }
+                                    contentItem: Text {
+                                        text: parent.text
+                                        color: "#ffffff"
+                                        font.bold: true
+                                        font.pixelSize: 10
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    onClicked: {
+                                        var exportFile = projectController.currentProjectPath + "/PROJECT_ANALYSIS_REPORT.md"
+                                        if (projectController.exportReport(exportFile)) {
+                                            exportNotice.open()
                                         }
                                     }
                                 }
                             }
-
-                            ScrollBar.vertical: ScrollBar { active: true }
                         }
-                    }
 
-                    // Item 1: Project Summary
-                    ScrollView {
-                        clip: true
-                        TextArea {
-                            readOnly: true
-                            text: projectController.projectSummary
-                            textFormat: TextEdit.MarkdownText
-                            color: "#e4e4e7"
-                            font.pixelSize: 13
-                            background: Rectangle { color: "#18181b" }
-                            padding: 16
+                        ScrollView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+
+                            TextArea {
+                                readOnly: true
+                                text: projectController.projectSummary
+                                textFormat: TextEdit.MarkdownText
+                                color: "#e2e8f0"
+                                font.pixelSize: 12
+                                background: Rectangle { color: "#0f172a" }
+                                padding: 14
+                                wrapMode: TextArea.Wrap
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Center / Right: Code Viewer & Graph Visualization
+        // ==========================================
+        // CENTER & RIGHT: Code Viewer + Topology Visualizer + Logs
+        // ==========================================
         SplitView {
             orientation: Qt.Vertical
             SplitView.fillWidth: true
 
-            // Upper View: Code Editor (Scintilla-style with Line Numbers & Highlighting)
+            // TOP SECTION: Code Editor (Scintilla-like with gutter & syntax highlight)
             Rectangle {
                 SplitView.preferredHeight: 460
+                SplitView.minimumHeight: 200
                 SplitView.fillWidth: true
-                color: "#1e1e1e"
+                color: "#1e1e24" // VS Dark theme background
 
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 0
 
-                    // File Header Bar
+                    // Editor Title Bar
                     Rectangle {
                         Layout.fillWidth: true
-                        height: 36
-                        color: "#252526"
-                        border.color: "#333333"
+                        height: 38
+                        color: "#25252b"
+                        border.color: "#33333d"
+                        border.width: 1
 
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: 12
                             anchors.rightMargin: 12
-                            spacing: 10
+                            spacing: 8
 
                             Text {
-                                text: currentSelectedFilePath.length > 0 ? ("📝 " + currentSelectedFilePath) : "未选择文件"
-                                color: "#cccccc"
-                                font.pixelSize: 12
+                                text: currentSelectedFilePath.length > 0 ? ("📄 " + currentSelectedFilePath) : "未选择任何文件"
+                                color: "#f8fafc"
                                 font.bold: true
+                                font.pixelSize: 12
+                            }
+
+                            Rectangle {
+                                width: 50
+                                height: 20
+                                radius: 3
+                                color: "#334155"
+                                visible: currentSelectedFilePath.length > 0
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: currentFileExtension.toUpperCase()
+                                    color: "#38bdf8"
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                }
                             }
 
                             Item { Layout.fillWidth: true }
 
+                            Button {
+                                text: "在拓扑图中聚焦该文件"
+                                visible: currentSelectedFilePath.length > 0
+                                implicitHeight: 26
+                                background: Rectangle {
+                                    color: "#334155"
+                                    radius: 4
+                                }
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "#f8fafc"
+                                    font.pixelSize: 11
+                                }
+                                onClicked: {
+                                    projectController.selectFile(currentSelectedFilePath);
+                                    topoGraphView.selectNode(currentSelectedFilePath);
+                                }
+                            }
+
                             Text {
-                                text: "语法高亮引擎就绪 | UTF-8"
-                                color: "#858585"
-                                font.pixelSize: 11
+                                text: "QSyntaxHighlighter 引擎驱动 | UTF-8"
+                                color: "#64748b"
+                                font.pixelSize: 10
                             }
                         }
                     }
 
-                    // Editor Workspace
+                    // Editor Canvas with Line Numbers Gutter
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         spacing: 0
 
-                        // Line Number Gutter
+                        // Line Numbers Bar
                         Rectangle {
                             Layout.fillHeight: true
-                            width: 50
-                            color: "#1e1e1e"
-                            border.color: "#2d2d2d"
+                            width: 52
+                            color: "#18181b"
+                            border.color: "#27272a"
 
                             ListView {
                                 id: lineNumList
@@ -331,15 +605,15 @@ ApplicationWindow {
 
                                 delegate: Item {
                                     width: lineNumList.width
-                                    height: codeEditor.cursorRectangle.height > 0 ? codeEditor.cursorRectangle.height : 18
+                                    height: codeEditor.cursorRectangle.height > 0 ? codeEditor.cursorRectangle.height : 19
                                     Text {
                                         anchors.right: parent.right
                                         anchors.rightMargin: 8
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: index + 1
-                                        color: "#858585"
-                                        font.family: "Consolas, 'Courier New', monospace"
-                                        font.pixelSize: 13
+                                        color: "#52525b"
+                                        font.family: "Consolas, 'Cascadia Code', monospace"
+                                        font.pixelSize: 12
                                     }
                                 }
                             }
@@ -361,7 +635,7 @@ ApplicationWindow {
                                 selectedTextColor: "#ffffff"
                                 selectByMouse: true
                                 wrapMode: TextArea.NoWrap
-                                background: Rectangle { color: "#1e1e1e" }
+                                background: Rectangle { color: "#1e1e24" }
                                 leftPadding: 8
                                 topPadding: 4
 
@@ -376,131 +650,324 @@ ApplicationWindow {
                 }
             }
 
-            // Lower View: Graphviz & Internal Dependency Visualizer
+            // MIDDLE SECTION: Interactive Graphviz Scene & Topology View
             Rectangle {
                 SplitView.fillHeight: true
+                SplitView.preferredHeight: 380
+                SplitView.minimumHeight: 180
                 SplitView.fillWidth: true
-                color: "#18181b"
-                border.color: "#27272a"
+                color: "#121216"
+                border.color: "#1e293b"
 
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 0
 
-                    // Graph Control Bar
+                    // Graph Toolbar & Status Bar
                     Rectangle {
                         Layout.fillWidth: true
-                        height: 40
-                        color: "#202023"
-                        border.color: "#27272a"
+                        height: 42
+                        color: "#1a1d24"
+                        border.color: "#272c38"
 
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: 12
                             anchors.rightMargin: 12
-                            spacing: 12
+                            spacing: 10
 
                             Text {
-                                text: "📊 依赖拓扑图 (Graphviz & QGraphicsView Engine)"
-                                color: "#e4e4e7"
+                                text: "📊 拓扑依赖图 (Graphviz & QPainter 矢量交互引擎)"
+                                color: "#f8fafc"
                                 font.bold: true
                                 font.pixelSize: 12
                             }
 
-                            Row {
-                                spacing: 4
-                                Button {
-                                    text: "全项目依赖图"
-                                    checked: true
-                                    onClicked: {
-                                        graphView.dotSource = projectController.fileGraphDot
-                                    }
+                            Rectangle { width: 1; height: 18; color: "#334155" }
+
+                            Button {
+                                text: "全项目文件依赖网络"
+                                implicitHeight: 28
+                                background: Rectangle {
+                                    color: isFileGraphActive ? "#0284c7" : "#1e293b"
+                                    border.color: isFileGraphActive ? "#38bdf8" : "#475569"
+                                    radius: 4
                                 }
-                                Button {
-                                    text: "当前文件内部关系图"
-                                    onClicked: {
-                                        graphView.dotSource = projectController.currentSymbolGraphDot
-                                    }
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "#ffffff"
+                                    font.bold: isFileGraphActive
+                                    font.pixelSize: 11
+                                }
+                                onClicked: {
+                                    isFileGraphActive = true;
+                                    topoGraphView.dotSource = projectController.fileGraphDot;
+                                    appLogger.logInfo("图谱切换", "切换显示: 全项目文件依赖网络");
+                                }
+                            }
+
+                            Button {
+                                text: "当前文件内部符号结构图"
+                                implicitHeight: 28
+                                background: Rectangle {
+                                    color: !isFileGraphActive ? "#0284c7" : "#1e293b"
+                                    border.color: !isFileGraphActive ? "#38bdf8" : "#475569"
+                                    radius: 4
+                                }
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "#ffffff"
+                                    font.bold: !isFileGraphActive
+                                    font.pixelSize: 11
+                                }
+                                onClicked: {
+                                    isFileGraphActive = false;
+                                    topoGraphView.dotSource = projectController.currentSymbolGraphDot;
+                                    appLogger.logInfo("图谱切换", "切换显示: 当前文件内部符号结构");
+                                }
+                            }
+
+                            Button {
+                                text: topoGraphView.layoutDirection === "LR" ? "布局: 水平 (LR)" : "布局: 垂直 (TB)"
+                                implicitHeight: 28
+                                background: Rectangle {
+                                    color: "#1e293b"
+                                    border.color: "#475569"
+                                    radius: 4
+                                }
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "#cbd5e1"
+                                    font.pixelSize: 11
+                                }
+                                onClicked: {
+                                    topoGraphView.layoutDirection = (topoGraphView.layoutDirection === "LR") ? "TB" : "LR";
                                 }
                             }
 
                             Item { Layout.fillWidth: true }
 
                             Text {
-                                text: graphView.statusMessage
-                                color: "#a1a1aa"
+                                text: topoGraphView.statusMessage
+                                color: "#94a3b8"
                                 font.pixelSize: 11
                             }
 
-                            Button { text: "+"; width: 32; onClicked: graphView.zoomIn() }
-                            Button { text: "-"; width: 32; onClicked: graphView.zoomOut() }
-                            Button { text: "重置缩放"; onClicked: graphView.resetView() }
+                            Button { text: "➕"; implicitWidth: 32; implicitHeight: 28; onClicked: topoGraphView.zoomIn() }
+                            Button { text: "➖"; implicitWidth: 32; implicitHeight: 28; onClicked: topoGraphView.zoomOut() }
+                            Button { text: "适应窗口"; implicitHeight: 28; onClicked: topoGraphView.fitToView() }
+                            Button { text: "复位"; implicitHeight: 28; onClicked: topoGraphView.resetView() }
                         }
                     }
 
-                    // Interactive Graphviz Scene Canvas
+                    // Interactive Graphviz Scene Container
                     Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
 
-                        GraphVisualizer {
-                            id: graphView
+                        InteractiveGraphView {
+                            id: topoGraphView
                             anchors.fill: parent
                             dotSource: projectController.fileGraphDot
 
                             Connections {
                                 target: projectController
                                 function onFileGraphDotChanged() {
-                                    graphView.dotSource = projectController.fileGraphDot
+                                    if (isFileGraphActive) {
+                                        topoGraphView.dotSource = projectController.fileGraphDot;
+                                    }
                                 }
                                 function onCurrentSymbolGraphDotChanged() {
-                                    graphView.dotSource = projectController.currentSymbolGraphDot
+                                    if (!isFileGraphActive) {
+                                        topoGraphView.dotSource = projectController.currentSymbolGraphDot;
+                                    }
                                 }
+                            }
+
+                            onNodeDoubleClicked: (nodeId, fullPath) => {
+                                currentSelectedFilePath = fullPath;
+                                currentFileExtension = fullPath.split('.').pop();
+                                codeEditor.text = projectController.readFileContent(fullPath);
+                                editorBridge.fileExtension = currentFileExtension;
+                                appLogger.logInfo("图元联动", "双击图元并在编辑器中定位文件: " + fullPath);
                             }
 
                             MouseArea {
                                 anchors.fill: parent
+                                hoverEnabled: true
                                 acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-                                drag.target: null
 
                                 property real lastX: 0
                                 property real lastY: 0
+                                property bool isDragging: false
 
                                 onPressed: (mouse) => {
                                     lastX = mouse.x
                                     lastY = mouse.y
+                                    isDragging = false
+                                    topoGraphView.handleMousePress(mouse.x, mouse.y)
                                 }
 
                                 onPositionChanged: (mouse) => {
+                                    topoGraphView.handleMouseMove(mouse.x, mouse.y)
                                     if (mouse.buttons & Qt.LeftButton || mouse.buttons & Qt.MiddleButton) {
                                         var dx = mouse.x - lastX
                                         var dy = mouse.y - lastY
-                                        graphView.panBy(dx, dy)
+                                        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+                                            isDragging = true
+                                            topoGraphView.panBy(dx, dy)
+                                        }
                                         lastX = mouse.x
                                         lastY = mouse.y
                                     }
                                 }
 
                                 onWheel: (wheel) => {
-                                    if (wheel.angleDelta.y > 0) {
-                                        graphView.zoomIn()
-                                    } else {
-                                        graphView.zoomOut()
-                                    }
+                                    topoGraphView.handleWheel(wheel.x, wheel.y, wheel.angleDelta.y)
                                 }
                             }
                         }
                     }
                 }
             }
+
+            // BOTTOM SECTION: Operation & Diagnostics Log Terminal
+            Rectangle {
+                SplitView.preferredHeight: 140
+                SplitView.minimumHeight: 90
+                SplitView.maximumHeight: 280
+                SplitView.fillWidth: true
+                color: "#090d16"
+                border.color: "#1e293b"
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 0
+
+                    // Log Header Bar
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 30
+                        color: "#131b2e"
+                        border.color: "#1e293b"
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
+                            spacing: 8
+
+                            Text {
+                                text: "📜 运行操作日志 (" + appLogger.count + " 条记录)"
+                                color: "#f8fafc"
+                                font.bold: true
+                                font.pixelSize: 11
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            Button {
+                                text: "清空日志"
+                                implicitHeight: 22
+                                background: Rectangle {
+                                    color: "#334155"
+                                    radius: 3
+                                }
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "#cbd5e1"
+                                    font.pixelSize: 10
+                                }
+                                onClicked: appLogger.clear()
+                            }
+                        }
+                    }
+
+                    // Log Entries List
+                    ListView {
+                        id: logListView
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        model: appLogger.logs
+
+                        onCountChanged: {
+                            logListView.positionViewAtEnd()
+                        }
+
+                        delegate: Rectangle {
+                            width: logListView.width
+                            height: 24
+                            color: index % 2 === 0 ? "#090d16" : "#0d131f"
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 10
+                                spacing: 8
+
+                                Text {
+                                    text: modelData.timestamp
+                                    color: "#64748b"
+                                    font.family: "Consolas, monospace"
+                                    font.pixelSize: 10
+                                }
+
+                                Rectangle {
+                                    width: 54
+                                    height: 18
+                                    radius: 3
+                                    color: {
+                                        var lvl = modelData.level
+                                        if (lvl === "SUCCESS") return "#065f46"
+                                        if (lvl === "WARN") return "#854d0e"
+                                        if (lvl === "ERROR") return "#991b1b"
+                                        return "#1e3a8a"
+                                    }
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData.level
+                                        color: "#ffffff"
+                                        font.bold: true
+                                        font.pixelSize: 9
+                                    }
+                                }
+
+                                Text {
+                                    text: "[" + modelData.category + "]"
+                                    color: "#38bdf8"
+                                    font.bold: true
+                                    font.pixelSize: 11
+                                }
+
+                                Text {
+                                    text: modelData.message
+                                    color: {
+                                        var lvl = modelData.level
+                                        if (lvl === "ERROR") return "#f87171"
+                                        if (lvl === "WARN") return "#fde047"
+                                        if (lvl === "SUCCESS") return "#34d399"
+                                        return "#cbd5e1"
+                                    }
+                                    font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+                            }
+                        }
+
+                        ScrollBar.vertical: ScrollBar { active: true }
+                    }
+                }
+            }
         }
     }
 
-    // Bottom Status Bar
+    // Status Footer Bar
     footer: Rectangle {
         height: 28
-        color: "#007acc"
+        color: "#0284c7"
 
         RowLayout {
             anchors.fill: parent
@@ -510,51 +977,63 @@ ApplicationWindow {
             Text {
                 text: "状态: " + projectController.statusMessage
                 color: "#ffffff"
+                font.bold: true
                 font.pixelSize: 11
             }
 
             Item { Layout.fillWidth: true }
 
             Text {
-                text: "MSVC x64 + Qt 6.8.3 QML + Graphviz 核心驱动"
-                color: "#e0e0e0"
+                text: "MSVC x64 + Qt 6.8.3 QML + Graphviz 拓扑分析引擎"
+                color: "#e0f2fe"
                 font.pixelSize: 11
             }
         }
     }
 
-    // Network Connectivity Dialog
+    // Dialog: Network Diagnostic
     Dialog {
         id: netDialog
-        title: "代码托管平台网络连通性测试"
+        title: "代码托管平台网络连通性诊断"
         modal: true
         anchors.centerIn: parent
-        width: 620
-        height: 480
+        width: 640
+        height: 500
         background: Rectangle {
-            color: "#1f1f23"
+            color: "#1e293b"
             radius: 8
-            border.color: "#3f3f46"
+            border.color: "#334155"
+            border.width: 1
         }
 
         header: Rectangle {
             height: 48
-            color: "#27272a"
+            color: "#0f172a"
             radius: 8
 
             RowLayout {
                 anchors.fill: parent
                 anchors.margins: 12
                 Text {
-                    text: "🌐 代码托管平台网络连通性测试"
-                    color: "#f4f4f5"
+                    text: "🌐 代码托管平台网络连通性诊断中心"
+                    color: "#f8fafc"
                     font.bold: true
                     font.pixelSize: 14
                 }
                 Item { Layout.fillWidth: true }
                 Button {
-                    text: networkTester.testing ? "测试中..." : "重新测试全部"
+                    text: networkTester.testing ? "诊断中..." : "重新探测全部"
                     enabled: !networkTester.testing
+                    background: Rectangle {
+                        color: "#0284c7"
+                        radius: 4
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: "#ffffff"
+                        font.bold: true
+                        font.pixelSize: 11
+                    }
                     onClicked: networkTester.testAllPlatforms()
                 }
             }
@@ -565,10 +1044,10 @@ ApplicationWindow {
 
             ListModel {
                 id: netResultsModel
-                ListElement { platform: "GitHub"; key: "github"; url: "https://github.com"; status: "未检测"; latency: "-"; ok: false }
-                ListElement { platform: "Gitee (码云)"; key: "gitee"; url: "https://gitee.com"; status: "未检测"; latency: "-"; ok: false }
-                ListElement { platform: "GitLab"; key: "gitlab"; url: "https://gitlab.com"; status: "未检测"; latency: "-"; ok: false }
-                ListElement { platform: "GitCode"; key: "gitcode"; url: "https://gitcode.com"; status: "未检测"; latency: "-"; ok: false }
+                ListElement { platform: "GitHub"; key: "github"; url: "https://github.com"; status: "未探测"; latency: "-"; ok: false }
+                ListElement { platform: "Gitee (码云)"; key: "gitee"; url: "https://gitee.com"; status: "未探测"; latency: "-"; ok: false }
+                ListElement { platform: "GitLab"; key: "gitlab"; url: "https://gitlab.com"; status: "未探测"; latency: "-"; ok: false }
+                ListElement { platform: "GitCode (CSDN)"; key: "gitcode"; url: "https://gitcode.com"; status: "未探测"; latency: "-"; ok: false }
             }
 
             Connections {
@@ -595,8 +1074,8 @@ ApplicationWindow {
 
                 delegate: Rectangle {
                     width: parent.width
-                    height: 64
-                    color: "#27272a"
+                    height: 68
+                    color: "#0f172a"
                     radius: 6
                     border.color: model.ok ? "#10b981" : "#ef4444"
                     border.width: 1
@@ -610,7 +1089,7 @@ ApplicationWindow {
                             width: 12
                             height: 12
                             radius: 6
-                            color: model.ok ? "#10b981" : (model.status === "未检测" ? "#71717a" : "#ef4444")
+                            color: model.ok ? "#10b981" : (model.status === "未探测" ? "#64748b" : "#ef4444")
                         }
 
                         ColumnLayout {
@@ -619,28 +1098,28 @@ ApplicationWindow {
                             RowLayout {
                                 Text {
                                     text: model.platform
-                                    color: "#f4f4f5"
+                                    color: "#f8fafc"
                                     font.bold: true
                                     font.pixelSize: 13
                                 }
                                 Text {
                                     text: "(" + model.url + ")"
-                                    color: "#a1a1aa"
+                                    color: "#94a3b8"
                                     font.pixelSize: 11
                                 }
                             }
                             Text {
                                 text: model.status
-                                color: model.ok ? "#34d399" : (model.status === "未检测" ? "#71717a" : "#f87171")
+                                color: model.ok ? "#34d399" : (model.status === "未探测" ? "#94a3b8" : "#f87171")
                                 font.pixelSize: 11
                             }
                         }
 
                         Text {
                             text: model.latency
-                            color: "#60a5fa"
+                            color: "#38bdf8"
                             font.bold: true
-                            font.pixelSize: 12
+                            font.pixelSize: 13
                         }
                     }
                 }
@@ -649,6 +1128,97 @@ ApplicationWindow {
 
         onOpened: {
             networkTester.testAllPlatforms()
+        }
+    }
+
+    // Dialog: Help & Documentation
+    Dialog {
+        id: helpDialog
+        title: "工具使用说明与架构指南"
+        modal: true
+        anchors.centerIn: parent
+        width: 680
+        height: 520
+        background: Rectangle {
+            color: "#1e293b"
+            radius: 8
+            border.color: "#334155"
+        }
+
+        header: Rectangle {
+            height: 48
+            color: "#0f172a"
+            radius: 8
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 12
+                Text {
+                    text: "📖 CodeInsight Pro 工具使用指南"
+                    color: "#f8fafc"
+                    font.bold: true
+                    font.pixelSize: 14
+                }
+            }
+        }
+
+        contentItem: ScrollView {
+            clip: true
+            TextArea {
+                readOnly: true
+                textFormat: TextEdit.MarkdownText
+                color: "#e2e8f0"
+                font.pixelSize: 12
+                background: Item {}
+                padding: 16
+                text: "### 💡 核心功能指南\n\n" +
+                      "1. **远程仓库阅读**：在顶部输入框粘贴 GitHub、Gitee、GitLab 的仓库链接，点击「拉取分析」，系统将自动在后台进行 Shallow Clone 并解析全景拓扑。\n" +
+                      "2. **本地工程阅读**：点击「打开本地代码」，选择任意已有项目的源码文件夹。\n" +
+                      "3. **交互式拓扑图**：\n" +
+                      "   - **拖拽**：按住鼠标左键可任意平移画布。\n" +
+                      "   - **缩放**：滚动鼠标滚轮可平滑放大与缩小拓扑图。\n" +
+                      "   - **节点选择**：单击图元卡片可查看其入度与出度。\n" +
+                      "   - **双击联动**：双击图元可在上方代码编辑器中直接定位与打开文件。\n" +
+                      "   - **图谱模式**：可无缝切换「全项目依赖网络」与「当前文件内部符号结构图」。\n" +
+                      "4. **Scintilla 风格代码阅读**：支持行号槽滚动对齐与 C/C++/QML/Python 语法高亮。\n" +
+                      "5. **网络诊断中心**：在拉取海外或私有仓库前，点击「网络连通性诊断」可测试各平台延迟与可用性。\n" +
+                      "6. **全景总结与导出**：左侧「全景总结报告」提供了代码行数、语言比例及耦合度统计，并支持一键导出 Markdown 报告。"
+            }
+        }
+    }
+
+    // Export Confirmation Notice Dialog
+    Dialog {
+        id: exportNotice
+        title: "导出成功"
+        anchors.centerIn: parent
+        width: 380
+        height: 160
+        modal: true
+        background: Rectangle {
+            color: "#1e293b"
+            radius: 8
+            border.color: "#10b981"
+        }
+        contentItem: ColumnLayout {
+            spacing: 12
+            Text {
+                text: "✅ 分析报告已成功导出！"
+                color: "#34d399"
+                font.bold: true
+                font.pixelSize: 14
+            }
+            Text {
+                text: "保存路径为项目根目录下的:\nPROJECT_ANALYSIS_REPORT.md"
+                color: "#cbd5e1"
+                font.pixelSize: 11
+            }
+            Button {
+                text: "确定"
+                Layout.alignment: Qt.AlignRight
+                background: Rectangle { color: "#0284c7"; radius: 4 }
+                contentItem: Text { text: "确定"; color: "#ffffff"; horizontalAlignment: Text.AlignHCenter }
+                onClicked: exportNotice.close()
+            }
         }
     }
 }

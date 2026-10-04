@@ -1,4 +1,5 @@
 #include "ProjectController.h"
+#include "Logger.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QFile>
@@ -27,10 +28,12 @@ void ProjectController::openLocalFolder(const QString &folderPath) {
     QDir dir(path);
     if (!dir.exists()) {
         m_statusMessage = "错误：目录不存在 " + path;
+        Logger::instance()->logError("项目加载", m_statusMessage);
         emit statusMessageChanged();
         return;
     }
 
+    Logger::instance()->logInfo("项目加载", "打开本地工作区: " + path);
     m_currentProjectPath = path;
     emit currentProjectPathChanged();
     refreshAnalysis();
@@ -43,6 +46,7 @@ void ProjectController::cloneAndOpenRepo(const QString &repoUrl) {
     m_busy = true;
     emit isBusyChanged();
     m_statusMessage = "正在拉取仓库代码: " + trimmed + " ...";
+    Logger::instance()->logInfo("Git克隆", "发起远程克隆: " + trimmed);
     emit statusMessageChanged();
 
     // Extract repo name
@@ -57,21 +61,23 @@ void ProjectController::cloneAndOpenRepo(const QString &repoUrl) {
     QString targetDir = tempBase + "/" + repoName;
 
     // Run git clone asynchronously
-    (void)QtConcurrent::run([this, trimmed, targetDir]() {
-        // If directory already exists, pull or clear
+    (void)QtConcurrent::run([this, trimmed, targetDir, repoName]() {
         if (QDir(targetDir).exists()) {
+            Logger::instance()->logInfo("Git拉取", "本地已存在仓库缓存，尝试执行 git pull...");
             QProcess pullProc;
             pullProc.setWorkingDirectory(targetDir);
             pullProc.start("git", QStringList() << "pull");
             pullProc.waitForFinished(30000);
         } else {
+            Logger::instance()->logInfo("Git拉取", QString("正在执行: git clone --depth 1 %1 %2").arg(trimmed, targetDir));
             QProcess cloneProc;
             cloneProc.start("git", QStringList() << "clone" << "--depth" << "1" << trimmed << targetDir);
             if (!cloneProc.waitForFinished(60000)) {
                 QMetaObject::invokeMethod(this, [this]() {
                     m_busy = false;
                     emit isBusyChanged();
-                    m_statusMessage = "克隆超时或网络失败，请检查链接与网络联通性。";
+                    m_statusMessage = "克隆超时或网络失败，请检查网络联通性。";
+                    Logger::instance()->logError("Git拉取", m_statusMessage);
                     emit statusMessageChanged();
                     emit cloneFinished(false, m_statusMessage);
                 });
@@ -83,6 +89,7 @@ void ProjectController::cloneAndOpenRepo(const QString &repoUrl) {
                     m_busy = false;
                     emit isBusyChanged();
                     m_statusMessage = "Git 克隆失败: " + err;
+                    Logger::instance()->logError("Git拉取", m_statusMessage);
                     emit statusMessageChanged();
                     emit cloneFinished(false, m_statusMessage);
                 });
@@ -90,10 +97,11 @@ void ProjectController::cloneAndOpenRepo(const QString &repoUrl) {
             }
         }
 
-        QMetaObject::invokeMethod(this, [this, targetDir]() {
+        QMetaObject::invokeMethod(this, [this, targetDir, repoName]() {
             m_busy = false;
             emit isBusyChanged();
             m_statusMessage = "代码拉取成功，正在解析结构...";
+            Logger::instance()->logSuccess("Git克隆", QString("代码仓库 [%1] 拉取完成").arg(repoName));
             emit statusMessageChanged();
             emit cloneFinished(true, "拉取成功");
             openLocalFolder(targetDir);
@@ -107,6 +115,7 @@ void ProjectController::refreshAnalysis() {
     m_busy = true;
     emit isBusyChanged();
     m_statusMessage = "正在分析代码依赖与结构图谱...";
+    Logger::instance()->logInfo("代码分析", "开始遍历工作区代码与构建拓扑图...");
     emit statusMessageChanged();
 
     QString projectPath = m_currentProjectPath;
@@ -139,6 +148,7 @@ void ProjectController::refreshAnalysis() {
             m_busy = false;
             emit isBusyChanged();
             m_statusMessage = QString("分析完成，共识别 %1 个源码文件").arg(map.size());
+            Logger::instance()->logSuccess("代码分析", m_statusMessage);
             emit statusMessageChanged();
         });
     });
@@ -148,6 +158,10 @@ void ProjectController::selectFile(const QString &filePath) {
     if (!m_analyzedFiles.contains(filePath)) return;
     const FileDependencyInfo &info = m_analyzedFiles[filePath];
     m_currentSymbolGraphDot = DependencyAnalyzer::generateDotSymbolGraph(filePath, info);
+    Logger::instance()->logInfo("文件浏览", QString("激活文件: %1 (%2 行代码, %3 个内部符号)")
+                                              .arg(info.fileName)
+                                              .arg(info.lineCount)
+                                              .arg(info.symbols.size()));
     emit currentSymbolGraphDotChanged();
 }
 
@@ -159,6 +173,7 @@ QString ProjectController::readFileContent(const QString &relativeOrFullPath) {
 
     QFile file(fullPath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        Logger::instance()->logWarning("文件读取", "无法读取文件: " + fullPath);
         return "// 无法打开文件: " + fullPath;
     }
     return QString::fromUtf8(file.readAll());
@@ -214,4 +229,26 @@ void ProjectController::generateSummary() {
 
     m_projectSummary = summary;
     emit projectSummaryChanged();
+}
+
+bool ProjectController::exportReport(const QString &targetFilePath) {
+    QString path = targetFilePath;
+    if (path.startsWith("file:///")) {
+        path = QUrl(targetFilePath).toLocalFile();
+    }
+#ifdef Q_OS_WIN
+    if (path.startsWith("/") && path.length() > 2 && path[2] == ':') {
+        path = path.mid(1);
+    }
+#endif
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        Logger::instance()->logError("报告导出", "无法写入导出文件: " + path);
+        return false;
+    }
+    QTextStream out(&file);
+    out << m_projectSummary;
+    file.close();
+    Logger::instance()->logSuccess("报告导出", "项目分析总结已成功导出至: " + path);
+    return true;
 }

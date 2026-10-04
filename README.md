@@ -1,66 +1,91 @@
-# 开源代码阅读工具 (Open-Source Project Reader)
+# CodeInsight Pro - 开源代码架构与依赖全景分析工具
 
-基于 **C++ 17 + Qt 6.8 (QML) + MSVC** 构建的跨平台开源代码阅读与架构全景分析工具。
-
----
-
-## ✨ 核心功能与特性
-
-1. **主流托管平台支持与自动化拉取解析**
-   - 支持通过输入 GitHub、Gitee (码云)、GitLab、GitCode 等 Git 仓库链接，后台异步浅克隆（`--depth 1`）并自动进入项目进行深度语法解析。
-   - 支持直接通过文件夹选择器加载本地已有源码目录。
-
-2. **跨平台网络环境连通性探测 (网络诊断中心)**
-   - 界面内置针对 GitHub、Gitee、GitLab、GitCode 等平台的即时网络连通性探测功能。
-   - 采用 Qt 异步网络引擎测量延迟、HTTP 状态码及可用性，便于开发者在阅读远端代码前判断网络代理与联通状态。
-
-3. **智能拓扑关系图谱分析 (文件依赖 & 文件内部符号)**
-   - **全项目文件拓扑图**：动态解析 C/C++/QML/Python 等代码的头文件包含、导入关系，输出 Graphviz DOT 拓扑结构。
-   - **单文件内部结构图**：提取文件内的 `class`、`struct`、`function`、`component`、`#include` 关键符号并生成内部层次关系图。
-   - **双模渲染引擎**：
-     - 若系统安装了 Graphviz，支持直接调用 `dot` 编译成高保真矢量 SVG；
-     - 若未安装 Graphviz，内置基于 QQuickPaintedItem / 拓扑数学模型的交互式渲染器，支持平移拖拽、鼠标滚轮平滑缩放与视图重置。
-
-4. **现代化高亮代码编辑器 (Scintilla 风格)**
-   - 采用 QML 现代化暗色主题。
-   - 集成独立行号显示条（Gutter）与代码视口精准对齐。
-   - 基于 C++ 底层 `QSyntaxHighlighter` 驱动的语法高亮系统（支持 C/C++ 关键字、Qt 类名、预处理宏、字符串与注释高亮）。
-
-5. **全项目宏观概况与多维度统计报告**
-   - 自动生成 Markdown 格式的统计报告。
-   - 统计项目代码总行数、总文件数、文件体积。
-   - 生成各语言文件类型占比表格及高耦合模块依赖预警分析。
+基于 **C++ 17 + Qt 6.8 (QML) + MSVC 2022** 构建的专业级开源代码阅读、拓扑依赖图谱分析与工程诊断工具。
 
 ---
 
-## 🛠️ 构建与环境要求
+## 🎨 界面与交互重构亮点
 
+1. **工业级开发工具界面风格 (VS Code / JetBrains Dark 现代深色体系)**
+   - 采用现代化扁平卡片化与 Slate-900 系列深灰专业配色。
+   - 三段式布局结构：
+     - **顶部功能控制区**：品牌标志、仓库链接克隆区、本地工程入口、网络诊断入口、工程重析与使用帮助。
+     - **左侧项目管理区**：支持根据实际窗口尺寸自适应拉伸或折叠，提供「源码文件（带快速关键词搜索检索过滤）」与「全景总结报告（可一键导出 Markdown 报告）」双面板。
+     - **中央工作区**：上方为 Scintilla 风格带独立行号槽与精准语法着色的代码编辑器；下方为交互式依赖拓扑图；底部为实时操作诊断日志面板。
+     - **底部状态栏**：全局运行状态指示与技术栈标记。
+
+2. **Graphviz 规范与 Qt 交互式图元引擎 ([`InteractiveGraphView`](file:///d:/WorkSpace/AI_Work/Open-source%20project%20reading%20tool/src/InteractiveGraphView.h))**
+   - **深层拓扑布局与贝塞尔曲线连接**：采用层次分层算法（Sugiyama 模型），根据入度与出度自动分配层级坐标。
+   - **全量图元事件交互**：
+     - **鼠标悬停高亮**：悬浮在任一文件节点时即时显示高亮光晕并同步显示元信息。
+     - **图元单选与关联边缘发光**：单击选中图元卡片，与其相关的依赖连线会切换为青色高亮发光显示，并计算其入度与出度。
+     - **双击联动代码查看**：双击拓扑图中的任意文件图元，上方代码编辑器将立即自动定位并加载对应源代码。
+     - **平移、缩放与视角自适应**：支持按住拖拽、滚轮平滑缩放、一键复位与「适应窗口（Fit to View）」。
+     - **水平/垂直布局切换**：支持 LR（水平从左到右）与 TB（垂直从上到下）一键切换。
+
+3. **操作日志与诊断终端 ([`Logger`](file:///d:/WorkSpace/AI_Work/Open-source%20project%20reading%20tool/src/Logger.h))**
+   - 界面底部内置实时滚动更新的操作日志终端。
+   - 记录项目加载、Git 克隆命令执行、网络连通性探测结果、拓扑图元交互、代码读取警告等全部日志，支持按日志级别（INFO、SUCCESS、WARN、ERROR）着色区分，并提供「清空日志」按钮。
+
+4. **代码托管平台网络诊断中心 ([`NetworkTester`](file:///d:/WorkSpace/AI_Work/Open-source%20project%20reading%20tool/src/NetworkTester.h))**
+   - 内置针对 **GitHub、Gitee (码云)、GitLab、GitCode** 的并发非阻塞连通性诊断对话框。
+   - 实时反馈往返延迟、HTTP 响应码及状态指示灯，并提供一键重新探测。
+
+5. **全景分析与报告导出 ([`ProjectController`](file:///d:/WorkSpace/AI_Work/Open-source%20project%20reading%20tool/src/ProjectController.h))**
+   - 多维度统计项目总代码行数、文件数、体积及各语言后缀所占百分比。
+   - 自动检测并预警高耦合依赖模块，支持直接点击「导出报告」保存为本地 `PROJECT_ANALYSIS_REPORT.md`。
+
+---
+
+## 🛠️ 环境要求与编译指南
+
+### 1. 软件环境
 - **操作系统**: Windows 10 / 11 (x64)
-- **编译工具链**: Visual Studio 2022 (MSVC 19.44+, C++17)
-- **Qt 版本**: Qt 6.8.3 (msvc2022_64)
+- **编译器**: Visual Studio 2022 (MSVC 19.44+, C++17)
+- **Qt SDK**: Qt 6.8.3 (`D:/Qt/6.8.3/msvc2022_64`)
 - **构建工具**: CMake (>= 3.20) + Ninja
-- **代码版本控制**: Git (已配置在系统 PATH 中)
-- *(可选)* **Graphviz**: 系统安装 `dot` 命令后可自动激活官方 SVG 渲染模式。
+- **Git**: 系统 PATH 中可用
 
----
+### 2. 编译与打包步骤
 
-## 🚀 编译与运行命令
-
-在项目根目录下通过 VS2022 开发者命令提示符执行：
+在 Visual Studio 2022 开发者命令提示符（Developer Command Prompt）中执行：
 
 ```powershell
-# 1. 初始化 VS2022 x64 编译环境
+# 1. 激活 MSVC x64 环境
 call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
 
 # 2. CMake 配置工程
 cmake -B build -G "Ninja" -DCMAKE_PREFIX_PATH="D:/Qt/6.8.3/msvc2022_64" -DCMAKE_BUILD_TYPE=Release
 
-# 3. 编译构建
+# 3. 编译
 cmake --build build --config Release
 
-# 4. 部署 Qt 运行时动态库
+# 4. 部署 Qt 运行依赖
 D:\Qt\6.8.3\msvc2022_64\bin\windeployqt.exe build\OpenSourceCodeReader.exe --qmldir qml
 
-# 5. 运行软件
+# 5. 启动软件
 .\build\OpenSourceCodeReader.exe
+```
+
+---
+
+## 📁 核心源码结构
+
+```
+Open-source project reading tool/
+├── CMakeLists.txt                # MSVC 2022 构建与编译参数
+├── resources.qrc                 # Qt 资源文件
+├── README.md                     # 本文档
+├── .gitignore                    # 严格排除构建产物与二进制文件
+├── src/
+│   ├── main.cpp                  # 应用程序入口与 QML 类型注册
+│   ├── Logger.h/.cpp             # 全局操作日志与诊断记录系统
+│   ├── InteractiveGraphView.h/.cpp # Graphviz 拓扑布局、贝塞尔曲线与可点击交互图元引擎
+│   ├── DependencyAnalyzer.h/.cpp # C++/QML/Python 依赖与内部符号解析器
+│   ├── NetworkTester.h/.cpp      # GitHub/Gitee/GitLab/GitCode 连通性测试模块
+│   ├── CodeSyntaxHighlighter.h/.cpp # 语法高亮引擎 (C++/QML/Python)
+│   ├── CodeEditorBridge.h/.cpp   # QML 编辑器桥接器
+│   └── ProjectController.h/.cpp  # 工程控制器、Git 克隆与报告导出
+└── qml/
+    └── Main.qml                  # 工业级深色主题界面、自适应分栏与日志终端
 ```

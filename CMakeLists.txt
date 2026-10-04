@@ -22,12 +22,16 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS
 
 set(SOURCES
     src/main.cpp
+    src/Logger.h
+    src/Logger.cpp
     src/NetworkTester.h
     src/NetworkTester.cpp
     src/DependencyAnalyzer.h
     src/DependencyAnalyzer.cpp
     src/GraphVisualizer.h
     src/GraphVisualizer.cpp
+    src/InteractiveGraphView.h
+    src/InteractiveGraphView.cpp
     src/CodeSyntaxHighlighter.h
     src/CodeSyntaxHighlighter.cpp
     src/CodeEditorBridge.h
